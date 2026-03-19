@@ -5,8 +5,9 @@ import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
 } from 'recharts'
-import { TrendingUp, TrendingDown, Filter } from 'lucide-react'
+import { TrendingUp, TrendingDown, Filter, Download, X, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ClientLink } from '@/components/ui'
 
 const PERIODS = ['Este mes', 'Trimestre', 'Este año']
 
@@ -28,14 +29,21 @@ const TOP_CLIENTES = [
 
 export default function ReportesPage() {
   const [period, setPeriod] = useState('Este mes')
+  const [showExport, setShowExport] = useState(false)
+  const [exportStep, setExportStep] = useState<'form' | 'done'>('form')
+  const [exportFmt, setExportFmt] = useState<'pdf' | 'excel' | 'csv'>('pdf')
+
+  function handleExport() { setExportStep('done'); setTimeout(() => setShowExport(false), 1800) }
+  function openExport() { setShowExport(true); setExportStep('form') }
 
   return (
+    <>
     <div className="flex flex-col gap-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-[#1A1F2B] text-2xl font-bold tracking-tight">Reportes</h1>
-          <p className="text-[#6B7280] text-sm mt-1">Análisis de producción y cartera</p>
+          <p className="text-[#6B7280] text-sm mt-1">Analisis de produccion y cartera</p>
         </div>
         <div className="flex items-center gap-2">
           <Filter size={14} className="text-[#9CA3AF]" />
@@ -48,6 +56,10 @@ export default function ReportesPage() {
               {p}
             </button>
           ))}
+          <button onClick={openExport} className="flex items-center gap-2 px-4 py-2 bg-[#EFF2F9] rounded-xl text-[13px] text-[#6B7280] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#F7941D] transition-colors">
+            <Download size={14} />
+            Exportar
+          </button>
         </div>
       </div>
 
@@ -153,7 +165,7 @@ export default function ReportesPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[#1A1F2B] text-sm font-semibold truncate">{c.name}</p>
+                  <ClientLink name={c.name} plain className="text-[#1A1F2B] text-sm font-semibold truncate" />
                   <p className="text-[#F7941D] text-sm font-bold ml-4 shrink-0">{c.prima}</p>
                 </div>
                 <div className="h-1.5 rounded-full bg-[#B5BFC6]/20 overflow-hidden">
@@ -167,5 +179,57 @@ export default function ReportesPage() {
         </div>
       </div>
     </div>
+
+      {/* Modal exportar */}
+      {showExport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(10px)', background: 'rgba(26,31,43,0.4)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm p-6 shadow-[−20px_−20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.25)] relative flex flex-col gap-4">
+            <button onClick={() => setShowExport(false)} className="absolute top-5 right-5 text-[#9CA3AF] hover:text-[#7C1F31] transition-colors"><X size={16} /></button>
+            {exportStep === 'done' ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <CheckCircle size={40} className="text-[#69A481]" />
+                <p className="text-[14px] text-[#1A1F2B]">Reporte generado</p>
+                <p className="text-[12px] text-[#9CA3AF]">Tu archivo esta listo para descargar</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-[16px] text-[#1A1F2B]">Exportar reporte</h2>
+                  <p className="text-[12px] text-[#9CA3AF] mt-0.5">Periodo: {period}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#9CA3AF] mb-2 block">Formato</label>
+                  <div className="flex gap-2">
+                    {(['pdf', 'excel', 'csv'] as const).map(f => (
+                      <button key={f} onClick={() => setExportFmt(f)}
+                        className="flex-1 py-2.5 rounded-xl text-[12px] uppercase transition-all"
+                        style={{ background: exportFmt === f ? '#F7941D' : '#EFF2F9', color: exportFmt === f ? 'white' : '#9CA3AF', boxShadow: exportFmt === f ? '0 4px 12px rgba(247,148,29,0.3)' : '-2px -2px 5px #FAFBFF, 2px 2px 5px rgba(22,27,29,0.12)' }}>
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#9CA3AF] mb-2 block">Incluir secciones</label>
+                  <div className="flex flex-col gap-2">
+                    {['KPIs resumen', 'Prima mensual', 'Distribucion por ramo', 'Top clientes', 'Leads por mes'].map(s => (
+                      <label key={s} className="flex items-center gap-2 text-[13px] text-[#6B7280] cursor-pointer">
+                        <input type="checkbox" defaultChecked className="accent-[#F7941D]" />
+                        {s}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={handleExport}
+                  className="w-full py-3 rounded-2xl text-white text-[13px] shadow-[0_4px_14px_rgba(247,148,29,0.3)] hover:brightness-110 transition-all"
+                  style={{ background: '#F7941D' }}>
+                  Generar y descargar
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

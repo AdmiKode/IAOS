@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users, FileText, MessageSquare, Calendar,
   BarChart3, Settings, LogOut, Bot, Phone, Layers, ChevronRight,
   Bell, Search, FilePlus, RefreshCw, Menu, X, AlertTriangle,
-  CreditCard, BookOpen, Shield, Tag, Brain
+  CreditCard, BookOpen, Shield, Tag, Brain, Crown, TrendingUp, Mail
 } from 'lucide-react'
 import { NotificationsPanel } from '@/components/agent/NotificationsPanel'
 
@@ -24,6 +24,8 @@ const NAV_ITEMS = [
   { icon: AlertTriangle, label: 'Tickets', href: '/agent/tickets' },
   { icon: Shield, label: 'Siniestros', href: '/agent/siniestros' },
   { icon: CreditCard, label: 'Cobranza', href: '/agent/cobranza' },
+  { icon: TrendingUp, label: 'Financiero', href: '/agent/financiero' },
+  { icon: Mail, label: 'Correo', href: '/agent/correo' },
   { icon: BookOpen, label: 'Knowledge', href: '/agent/knowledge' },
   { icon: Calendar, label: 'Agenda', href: '/agent/agenda' },
   { icon: BarChart3, label: 'Reportes', href: '/agent/reportes' },
@@ -32,6 +34,7 @@ const NAV_ITEMS = [
   { icon: Tag, label: 'Catálogos', href: '/agent/catalogos' },
   { icon: Shield, label: 'Compliance', href: '/agent/compliance' },
   { icon: Brain, label: 'IA Control', href: '/agent/ia-control' },
+  { icon: Crown, label: 'Mi Plan', href: '/agent/plan' },
 ]
 
 const BOTTOM_ITEMS = [
@@ -40,13 +43,20 @@ const BOTTOM_ITEMS = [
 ]
 
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth()
+  const { user, logout, isLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [expanded, setExpanded] = useState(true)
   const [notifOpen, setNotifOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
+
+  // Client-side auth guard — redirect to login if no session
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/login')
+    }
+  }, [isLoading, user, router])
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -87,7 +97,13 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
                   : 'text-[#6B7280] hover:text-[#1A1F2B] hover:bg-[#EFF2F9]/60'
               )}
             >
-              <item.icon size={15} />
+              {item.label === 'XORIA' ? (
+                <div className="w-[15px] h-[15px] rounded-full overflow-hidden shrink-0">
+                  <Image src="/Icono xoria.png" alt="XORIA" width={15} height={15} className="object-cover w-full h-full" />
+                </div>
+              ) : (
+                <item.icon size={15} />
+              )}
               {item.label}
               {item.label === 'XORIA' && (
                 <span className="ml-auto w-5 h-5 bg-[#F7941D] rounded-full flex items-center justify-center text-white text-[9px]">IA</span>
@@ -100,7 +116,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex h-screen bg-[#EFF2F9] overflow-hidden">
+    <div className="flex h-screen bg-[#EFF2F9]">
 
       {/* ── MOBILE OVERLAY ─────────────────────────────────── */}
       {mobileOpen && (
@@ -121,8 +137,8 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
         {/* Drawer header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#D1D5DB]/40">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#F7941D] flex items-center justify-center shadow-[0_4px_12px_rgba(247,148,29,0.4)]">
-              <Image src="/icon.png" alt="IAOS" width={20} height={20} className="rounded-md" />
+            <div className="w-9 h-9 flex items-center justify-center shrink-0">
+              <Image src="/icon.png" alt="IAOS" width={36} height={36} className="drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]" />
             </div>
             <div>
               <p className="text-[13px] text-[#1A1F2B] tracking-wide truncate max-w-[140px]">{user?.name}</p>
@@ -165,12 +181,14 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       {/* ── DESKTOP RAIL (icon-only, dark) ─────────────────── */}
       <div className="hidden md:flex flex-col items-center w-[64px] h-full bg-[#1A1F2B] py-5 gap-1 shrink-0 z-20">
         {/* Logo */}
-        <div className="w-10 h-10 rounded-xl bg-[#F7941D] flex items-center justify-center mb-5 shadow-[0_4px_12px_rgba(247,148,29,0.4)]">
-          <Image src="/icon.png" alt="IAOS" width={24} height={24} className="rounded-lg" />
+        <div className="mb-3 shrink-0 flex items-center justify-center">
+          <Image src="/icon.png" alt="IAOS" width={44} height={44} className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]" />
         </div>
 
-        {/* Nav icons */}
-        <div className="flex flex-col items-center gap-1 flex-1">
+        {/* Nav icons — scrollable, sin scrollbar visible */}
+        <div className="flex flex-col items-center gap-1 flex-1 min-h-0 overflow-y-auto w-full px-2 scrollbar-none"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {NAV_ITEMS.map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
@@ -179,20 +197,26 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
                 href={item.href}
                 title={item.label}
                 className={cn(
-                  'w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200',
+                  'w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 shrink-0',
                   active
                     ? 'bg-[#F7941D] text-white shadow-[0_4px_12px_rgba(247,148,29,0.35)]'
                     : 'text-[#6E7F8D] hover:bg-white/10 hover:text-white'
                 )}
               >
-                <item.icon size={18} />
+                {item.label === 'XORIA' ? (
+                  <div className="w-[22px] h-[22px] rounded-full overflow-hidden">
+                    <Image src="/Icono xoria.png" alt="XORIA" width={22} height={22} className="object-cover w-full h-full" style={{ filter: active ? 'none' : 'brightness(0.7) saturate(0.5)' }} />
+                  </div>
+                ) : (
+                  <item.icon size={18} />
+                )}
               </Link>
             )
           })}
         </div>
 
         {/* Bottom icons */}
-        <div className="flex flex-col items-center gap-1 pb-2">
+        <div className="flex flex-col items-center gap-1 pb-2 shrink-0">
           {BOTTOM_ITEMS.map(item => (
             item.href ? (
               <Link key={item.label} href={item.href} title={item.label}
@@ -206,7 +230,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
               </button>
             )
           ))}
-          <div className="w-10 h-10 rounded-xl bg-[#F7941D]/20 flex items-center justify-center text-[#F7941D] text-[12px] font-[Questrial] mt-2 cursor-pointer hover:bg-[#F7941D]/30 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-[#F7941D]/20 flex items-center justify-center text-[#F7941D] text-[12px] font-[Questrial] mt-2 cursor-pointer hover:bg-[#F7941D]/30 transition-colors shrink-0">
             {initials}
           </div>
         </div>
@@ -217,10 +241,14 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
         'hidden md:flex flex-col h-full bg-[#EFF2F9] border-r border-[#D1D5DB]/40 transition-all duration-300 shrink-0 overflow-hidden',
         expanded ? 'w-[220px]' : 'w-0'
       )}>
-        <div className="flex items-center justify-between px-4 pt-5 pb-3">
+        <div className="flex items-center justify-between px-4 pt-5 pb-3 shrink-0">
           <div>
             <h2 className="text-[13px] text-[#1A1F2B] tracking-wide truncate">{user?.name}</h2>
             <p className="text-[11px] text-[#6B7280] truncate">{user?.role === 'agent' ? 'Agente' : 'Administrador'}</p>
+            <Link href="/agent/plan" className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] bg-[#F7941D]/15 text-[#F7941D] hover:bg-[#F7941D]/25 transition-colors">
+              <Crown size={9} />
+              Plan Profesional
+            </Link>
           </div>
           <button onClick={() => setExpanded(v => !v)}
             className="w-6 h-6 flex items-center justify-center text-[#9CA3AF] hover:text-[#1A1F2B] transition-colors">
@@ -228,18 +256,18 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
 
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-3 shrink-0">
           <div className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
             <input placeholder="Buscar..." className="w-full bg-[#EFF2F9] rounded-xl pl-8 pr-3 py-2 text-[12px] text-[#1A1F2B] outline-none shadow-[inset_-3px_-3px_6px_#FAFBFF,inset_3px_3px_6px_rgba(22,27,29,0.15)] placeholder:text-[#9CA3AF]" />
           </div>
         </div>
 
-        <nav className="flex flex-col px-3 gap-0.5 flex-1 overflow-y-auto">
+        <nav className="flex flex-col px-3 gap-0.5 flex-1 min-h-0 overflow-y-auto">
           <NavList />
         </nav>
 
-        <div className="px-3 pb-5 pt-2 border-t border-[#D1D5DB]/40">
+        <div className="px-3 pb-5 pt-2 border-t border-[#D1D5DB]/40 shrink-0">
           <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-[#9CA3AF] hover:text-[#7C1F31] transition-colors w-full">
             <LogOut size={15} />
             Cerrar sesión
@@ -248,7 +276,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* ── MAIN CONTENT ───────────────────────────────────── */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
         {/* Topbar */}
         <header className="flex items-center justify-between px-4 md:px-6 h-[60px] shrink-0 border-b border-[#D1D5DB]/30">
           {/* Left: hamburger (mobile) / chevron (desktop) */}
@@ -294,7 +322,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
           {children}
         </main>
       </div>

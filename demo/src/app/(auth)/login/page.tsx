@@ -54,10 +54,14 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-[#EFF2F9] shadow-[-8px_-8px_16px_#FAFBFF,8px_8px_16px_rgba(22,27,29,0.18)] flex items-center justify-center mb-4">
-            <Image src="/icon.png" alt="IAOS" width={40} height={40} className="rounded-xl" />
-          </div>
-          <h1 className="text-[22px] text-[#1A1F2B] tracking-wide">Insurance Agent OS</h1>
+          <Image
+            src="/logo.png"
+            alt="Insurance Agent OS"
+            width={180}
+            height={54}
+            className="object-contain mb-4 drop-shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
+            priority
+          />
           <p className="text-[13px] text-[#6B7280] mt-1 tracking-wide">Accede a tu workspace</p>
         </div>
 

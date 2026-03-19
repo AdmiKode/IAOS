@@ -1,8 +1,9 @@
 'use client'
-import { useState } from 'react'
-import { MOCK_SINIESTROS } from '@/data/mock'
-import { AlertTriangle, CheckCircle, Clock, FileText, Upload, X, Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useRef, useCallback } from 'react'
+import { MOCK_SINIESTROS, MOCK_POLICIES } from '@/data/mock'
+import { AlertTriangle, CheckCircle, Clock, FileText, Upload, X, Plus, Camera, Scan, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ClientLink } from '@/components/ui'
 
 const STATUS_COLOR: Record<string, string> = {
   en_proceso: '#F7941D', cerrado: '#69A481', abierto: '#7C1F31'
@@ -20,8 +21,16 @@ const TIPO_COLOR: Record<string, string> = {
 export default function SiniestrosPage() {
   const [selected, setSelected] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
+
+  // — Modal nuevo siniestro —
+  const [ocrStep, setOcrStep] = useState<'idle' | 'uploading' | 'scanning' | 'done'>('idle')
+  const [ocrFile, setOcrFile] = useState<{ name: string; size: string } | null>(null)
+  const [ocrData, setOcrData] = useState<Record<string, string> | null>(null)
+  const [formData, setFormData] = useState({ cliente: '', poliza: '', tipo: '', monto: '', descripcion: '' })
+  const [dragging, setDragging] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const filtered = filterStatus ? MOCK_SINIESTROS.filter(s => s.status === filterStatus) : MOCK_SINIESTROS
   const selectedSiniestro = selected ? MOCK_SINIESTROS.find(s => s.id === selected) : null
@@ -32,6 +41,71 @@ export default function SiniestrosPage() {
     { label: 'Cerrados', val: MOCK_SINIESTROS.filter(s => s.status === 'cerrado').length, color: '#69A481' },
     { label: 'Monto total', val: '$' + MOCK_SINIESTROS.reduce((acc, s) => acc + parseInt(s.monto.replace(/\D/g, '') || '0'), 0).toLocaleString(), color: '#7C1F31' },
   ]
+
+  // Simular proceso OCR al subir evidencia
+  function simulateOCR(fileName: string, fileSize: string) {
+    setOcrFile({ name: fileName, size: fileSize })
+    setOcrStep('uploading')
+    setOcrData(null)
+    setTimeout(() => {
+      setOcrStep('scanning')
+      setTimeout(() => {
+        // Datos extraídos por OCR simulado
+        setOcrData({
+          poliza: 'AUTO-2024-0291',
+          aseguradora: 'GNP Seguros',
+          tipo: 'Colisión / Daño a terceros',
+          monto: '$24,500',
+          fecha: new Date().toLocaleDateString('es-MX'),
+          descripcion: 'Colisión frontal en intersección. Daños en parachoque y cofre. Sin lesionados. Se adjunta acta del MP y fotografías del lugar.',
+        })
+        setFormData(prev => ({
+          ...prev,
+          poliza: 'AUTO-2024-0291',
+          tipo: 'Colisión / Daño a terceros',
+          monto: '$24,500',
+          descripcion: 'Colisión frontal en intersección. Daños en parachoque y cofre. Sin lesionados.',
+        }))
+        setOcrStep('done')
+      }, 2200)
+    }, 1200)
+  }
+
+  function handleFileChange(file: File | null) {
+    if (!file) return
+    const size = file.size < 1024 * 1024
+      ? `${(file.size / 1024).toFixed(0)} KB`
+      : `${(file.size / 1024 / 1024).toFixed(1)} MB`
+    simulateOCR(file.name, size)
+  }
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files[0]
+    handleFileChange(file)
+  }, [])
+
+  function handleSubmit() {
+    setSubmitted(true)
+    setTimeout(() => {
+      setSubmitted(false)
+      setShowForm(false)
+      setOcrStep('idle')
+      setOcrFile(null)
+      setOcrData(null)
+      setFormData({ cliente: '', poliza: '', tipo: '', monto: '', descripcion: '' })
+    }, 2000)
+  }
+
+  function openModal() {
+    setShowForm(true)
+    setOcrStep('idle')
+    setOcrFile(null)
+    setOcrData(null)
+    setFormData({ cliente: '', poliza: '', tipo: '', monto: '', descripcion: '' })
+    setSubmitted(false)
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -65,7 +139,7 @@ export default function SiniestrosPage() {
             </button>
           ))}
         </div>
-        <button onClick={() => setShowForm(true)}
+        <button onClick={openModal}
           className="flex items-center gap-2 px-4 py-2 bg-[#F7941D] rounded-xl text-white text-[12px] shadow-[0_3px_10px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-all">
           <Plus size={13} />
           Nuevo siniestro
@@ -90,7 +164,9 @@ export default function SiniestrosPage() {
                     </div>
                     <div className="text-left">
                       <p className="text-[13px] text-[#1A1F2B]">{s.tipo}</p>
-                      <p className="text-[11px] text-[#9CA3AF]">{s.clientName} · {s.aseguradora}</p>
+                      <p className="text-[11px] text-[#9CA3AF]">
+                        <ClientLink name={s.clientName} plain className="text-[11px] text-[#9CA3AF]" /> · {s.aseguradora}
+                      </p>
                     </div>
                   </div>
                   <span className="text-[11px] px-2.5 py-1 rounded-xl shrink-0"
@@ -120,7 +196,10 @@ export default function SiniestrosPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[15px] text-[#1A1F2B]">{selectedSiniestro.tipo}</p>
-                <p className="text-[12px] text-[#9CA3AF]">{selectedSiniestro.clientName} · {(selectedSiniestro as any).fechaOcurrencia || selectedSiniestro.fecha}</p>
+                <p className="text-[12px] text-[#9CA3AF]">
+                  <ClientLink name={selectedSiniestro.clientName} plain className="text-[12px] text-[#9CA3AF]" />
+                  {' '}· {(selectedSiniestro as any).fechaOcurrencia || selectedSiniestro.fecha}
+                </p>
               </div>
               <button onClick={() => setSelected(null)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#7C1F31] transition-colors">
                 <X size={13} />
@@ -193,37 +272,126 @@ export default function SiniestrosPage() {
         )}
       </div>
 
-      {/* Modal nuevo siniestro */}
+      {/* Modal nuevo siniestro con OCR */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(26,31,43,0.4)', backdropFilter: 'blur(8px)' }}>
-          <div className="bg-[#EFF2F9] rounded-3xl p-6 w-full max-w-md shadow-[-12px_-12px_24px_#FAFBFF,12px_12px_24px_rgba(22,27,29,0.20)]">
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-[15px] text-[#1A1F2B]">Apertura de siniestro</p>
-              <button onClick={() => setShowForm(false)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#7C1F31]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(26,31,43,0.5)', backdropFilter: 'blur(10px)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-[-16px_-16px_32px_#FAFBFF,16px_16px_32px_rgba(22,27,29,0.22)]">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-[#D1D5DB]/20 sticky top-0 bg-[#EFF2F9] rounded-t-3xl z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#7C1F31]/10 flex items-center justify-center">
+                  <AlertTriangle size={15} className="text-[#7C1F31]" />
+                </div>
+                <p className="text-[15px] text-[#1A1F2B]">Apertura de siniestro</p>
+              </div>
+              <button onClick={() => setShowForm(false)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#7C1F31] transition-colors">
                 <X size={13} />
               </button>
             </div>
-            <div className="flex flex-col gap-3">
-              {[
-                { label: 'Cliente', placeholder: 'Nombre del cliente' },
-                { label: 'Número de póliza', placeholder: 'POL-00000' },
-                { label: 'Tipo de siniestro', placeholder: 'Robo, daño, accidente...' },
-                { label: 'Monto estimado', placeholder: '$0.00' },
-              ].map(f => (
-                <div key={f.label}>
-                  <label className="text-[11px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">{f.label}</label>
-                  <input placeholder={f.placeholder}
-                    className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
-                </div>
-              ))}
+
+            <div className="p-5 flex flex-col gap-4">
+              {/* Zona de carga de evidencia / OCR */}
               <div>
-                <label className="text-[11px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Descripción</label>
-                <textarea rows={3} placeholder="Descripción del siniestro..."
+                <p className="text-[11px] text-[#9CA3AF] uppercase tracking-wide mb-2">Evidencia del siniestro</p>
+                <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden"
+                  onChange={e => handleFileChange(e.target.files?.[0] || null)} />
+
+                {ocrStep === 'idle' && (
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                    onDragLeave={() => setDragging(false)}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                      'border-2 border-dashed rounded-2xl p-6 flex flex-col items-center gap-3 cursor-pointer transition-all',
+                      dragging ? 'border-[#F7941D] bg-[#F7941D]/5' : 'border-[#D1D5DB] hover:border-[#F7941D]/50 hover:bg-[#F7941D]/3'
+                    )}>
+                    <div className="w-12 h-12 rounded-2xl bg-[#F7941D]/10 flex items-center justify-center">
+                      <Camera size={22} className="text-[#F7941D]" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[13px] text-[#1A1F2B]">Arrastra fotos o PDF de evidencia</p>
+                      <p className="text-[11px] text-[#9CA3AF] mt-0.5">O haz clic para seleccionar · JPG, PNG, PDF</p>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#EFF2F9] rounded-xl shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[11px] text-[#F7941D]">
+                      <Scan size={12} />
+                      OCR automático activado
+                    </div>
+                  </div>
+                )}
+
+                {(ocrStep === 'uploading' || ocrStep === 'scanning') && (
+                  <div className="border-2 border-[#F7941D]/40 rounded-2xl p-5 bg-[#F7941D]/5 flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#F7941D]/15 flex items-center justify-center">
+                        <FileText size={16} className="text-[#F7941D]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] text-[#1A1F2B] truncate">{ocrFile?.name}</p>
+                        <p className="text-[11px] text-[#9CA3AF]">{ocrFile?.size}</p>
+                      </div>
+                      <Loader2 size={16} className="text-[#F7941D] animate-spin" />
+                    </div>
+                    <div className="w-full h-1.5 bg-[#EFF2F9] rounded-full shadow-[inset_-1px_-1px_3px_#FAFBFF,inset_1px_1px_3px_rgba(22,27,29,0.10)] overflow-hidden">
+                      <div className={cn('h-full rounded-full bg-[#F7941D] transition-all duration-700', ocrStep === 'scanning' ? 'w-[70%]' : 'w-[30%]')} />
+                    </div>
+                    <p className="text-[11px] text-[#F7941D] text-center">
+                      {ocrStep === 'uploading' ? 'Subiendo archivo...' : 'Procesando OCR · Extrayendo datos de evidencia...'}
+                    </p>
+                  </div>
+                )}
+
+                {ocrStep === 'done' && ocrData && (
+                  <div className="border-2 border-[#69A481]/40 rounded-2xl p-4 bg-[#69A481]/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle size={14} className="text-[#69A481]" />
+                      <p className="text-[12px] text-[#69A481]">OCR completado · Datos extraídos automáticamente</p>
+                      <button onClick={() => fileInputRef.current?.click()} className="ml-auto text-[11px] text-[#9CA3AF] hover:text-[#F7941D] transition-colors">Cambiar</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(ocrData).filter(([k]) => k !== 'descripcion').map(([key, val]) => (
+                        <div key={key} className="bg-white/50 rounded-xl p-2">
+                          <p className="text-[10px] text-[#9CA3AF] uppercase tracking-wide">{key}</p>
+                          <p className="text-[11px] text-[#1A1F2B] mt-0.5">{val}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Formulario */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { key: 'cliente', label: 'Cliente / Asegurado', placeholder: 'Nombre del cliente', full: true },
+                  { key: 'poliza', label: 'Número de póliza', placeholder: 'POL-00000' },
+                  { key: 'tipo', label: 'Tipo de siniestro', placeholder: 'Colisión, robo, incendio...' },
+                  { key: 'monto', label: 'Monto estimado', placeholder: '$0.00' },
+                ].map(f => (
+                  <div key={f.key} className={f.full ? 'col-span-2' : ''}>
+                    <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">{f.label}</label>
+                    <input
+                      value={formData[f.key as keyof typeof formData]}
+                      onChange={e => setFormData(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder}
+                      className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Descripción del siniestro</label>
+                <textarea rows={3}
+                  value={formData.descripcion}
+                  onChange={e => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+                  placeholder="Describe lo ocurrido con el mayor detalle posible..."
                   className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none resize-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
               </div>
-              <button onClick={() => setShowForm(false)}
-                className="w-full py-3 bg-[#F7941D] rounded-xl text-white text-[13px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-all">
-                Registrar siniestro
+
+              {/* Submit */}
+              <button onClick={handleSubmit} disabled={submitted}
+                className={cn('w-full py-3.5 rounded-xl text-white text-[13px] font-medium transition-all flex items-center justify-center gap-2',
+                  submitted ? 'bg-[#69A481] shadow-[0_4px_12px_rgba(105,164,129,0.3)]' : 'bg-[#F7941D] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A]')}>
+                {submitted ? <><CheckCircle size={15} /> Siniestro registrado</> : 'Registrar siniestro'}
               </button>
             </div>
           </div>

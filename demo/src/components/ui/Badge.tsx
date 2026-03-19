@@ -13,7 +13,7 @@ const variants = {
   success: 'bg-[#69A481]/15 text-[#69A481] border border-[#69A481]/30',
   warning: 'bg-[#F7941D]/15 text-[#F7941D] border border-[#F7941D]/30',
   danger: 'bg-[#7C1F31]/15 text-[#7C1F31] border border-[#7C1F31]/30',
-  info: 'bg-[#3B82F6]/15 text-[#3B82F6] border border-[#3B82F6]/30',
+  info: 'bg-[#6B7280]/15 text-[#6B7280] border border-[#6B7280]/30',
 }
 
 const sizes = {

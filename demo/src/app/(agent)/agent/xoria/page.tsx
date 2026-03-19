@@ -1,9 +1,10 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, Mic, MicOff, Sparkles, User, Plus, Clock, Trash2, MessageSquare } from 'lucide-react'
+import { Send, Mic, MicOff, Sparkles, User, Plus, Clock, Trash2, MessageSquare } from 'lucide-react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
-import { MOCK_KPIS, MOCK_LEADS } from '@/data/mock'
+import { MOCK_KPIS, MOCK_LEADS, MOCK_CLIENTS, MOCK_POLICIES, MOCK_TICKETS, MOCK_SINIESTROS, MOCK_PAYMENTS, MOCK_AGENDA } from '@/data/mock'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -110,6 +111,30 @@ export default function XoriaPage() {
       acc[l.stage] = (acc[l.stage] || 0) + 1
       return acc
     }, {} as Record<string, number>),
+    clients: MOCK_CLIENTS.map(c => ({
+      id: c.id, name: c.name, email: c.email, phone: c.phone, score: c.score, tags: c.tags,
+      notas: c.notas?.map(n => ({ text: n.text, date: n.date })) || [],
+    })),
+    policies: MOCK_POLICIES.map(p => ({
+      id: p.id, clientName: p.clientName, type: p.type, insurer: p.insurer,
+      status: p.status, startDate: p.startDate, endDate: p.endDate,
+      premium: p.premium, coverage: p.coverage, policyNumber: p.policyNumber,
+    })),
+    tickets: MOCK_TICKETS.map(t => ({
+      id: t.id, clientName: t.clientName, subject: t.subject,
+      status: t.status, priority: t.priority, createdAt: t.createdAt,
+    })),
+    siniestros: MOCK_SINIESTROS.map(s => ({
+      id: s.id, clientName: s.clientName, tipo: s.tipo, descripcion: s.descripcion,
+      fecha: s.fecha, status: s.status, monto: s.monto, aseguradora: s.aseguradora,
+    })),
+    payments: MOCK_PAYMENTS.map(p => ({
+      id: p.id, clientName: p.clientName, concept: p.concept,
+      amount: p.amount, dueDate: p.dueDate, status: p.status,
+    })),
+    agenda: MOCK_AGENDA.map(a => ({
+      id: a.id, time: a.time, title: a.title, type: a.type, client: a.client,
+    })),
   }
 
   async function sendMessage(text: string) {
@@ -295,8 +320,8 @@ export default function XoriaPage() {
       <div className="flex-1 flex flex-col bg-[#EFF2F9] rounded-2xl shadow-[-8px_-8px_18px_#FAFBFF,8px_8px_18px_rgba(22,27,29,0.18)] overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-[#D1D5DB]/30">
-          <div className="w-9 h-9 rounded-xl bg-[#F7941D]/15 flex items-center justify-center">
-            <Bot size={18} className="text-[#F7941D]" />
+          <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 shadow-[0_2px_8px_rgba(247,148,29,0.25)]">
+            <Image src="/Icono xoria.png" alt="XORIA" width={36} height={36} className="object-cover w-full h-full" />
           </div>
           <div className="flex-1">
             <p className="text-[14px] text-[#1A1F2B] tracking-wide">XORIA</p>
@@ -319,12 +344,12 @@ export default function XoriaPage() {
         <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
           {messages.map((msg, i) => (
             <div key={i} className={cn('flex gap-3 max-w-[85%]', msg.role === 'user' ? 'self-end flex-row-reverse' : 'self-start')}>
-              <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center shrink-0',
+              <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden',
                 msg.role === 'assistant'
-                  ? 'bg-[#F7941D]/15'
+                  ? 'shadow-[0_2px_6px_rgba(247,148,29,0.2)]'
                   : 'bg-[#EFF2F9] shadow-[-3px_-3px_6px_#FAFBFF,3px_3px_6px_rgba(22,27,29,0.15)]')}>
                 {msg.role === 'assistant'
-                  ? <Bot size={14} className="text-[#F7941D]" />
+                  ? <Image src="/Icono xoria.png" alt="XORIA" width={32} height={32} className="object-cover w-full h-full" />
                   : <User size={14} className="text-[#6B7280]" />}
               </div>
 
@@ -334,7 +359,14 @@ export default function XoriaPage() {
                   ? 'bg-white/40 backdrop-blur-sm border border-white/50 text-[#1A1F2B] shadow-[0_4px_16px_rgba(22,27,29,0.08)] rounded-tl-sm'
                   : 'bg-[#EFF2F9] text-[#1A1F2B] shadow-[-4px_-4px_8px_#FAFBFF,4px_4px_8px_rgba(22,27,29,0.15)] rounded-tr-sm'
               )}>
-                {msg.content}
+                <span dangerouslySetInnerHTML={{ __html: msg.content
+                  .replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                  .replace(/\n/g, '<br/>')
+                }} />
                 <p className="text-[10px] text-[#9CA3AF] mt-1.5">
                   {new Date(msg.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                 </p>
@@ -345,8 +377,8 @@ export default function XoriaPage() {
           {/* Typing indicator */}
           {loading && (
             <div className="flex gap-3 self-start">
-              <div className="w-8 h-8 rounded-xl bg-[#F7941D]/15 flex items-center justify-center">
-                <Bot size={14} className="text-[#F7941D]" />
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 shadow-[0_2px_6px_rgba(247,148,29,0.2)]">
+                <Image src="/Icono xoria.png" alt="XORIA" width={32} height={32} className="object-cover w-full h-full" />
               </div>
               <div className="bg-white/40 backdrop-blur-sm border border-white/50 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
                 {[0, 150, 300].map(delay => (

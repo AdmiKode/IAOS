@@ -8,6 +8,7 @@ import {
   ArrowLeft, FileText, CreditCard, Phone, Download,
   CheckCircle, Clock, AlertTriangle, Shield
 } from "lucide-react";
+import { ClientLink } from "@/components/ui";
 
 const TABS = ["Resumen", "Documentos", "Pagos", "Contacto"];
 
@@ -75,7 +76,7 @@ export default function PolizaDetailPage() {
                   {policy.status}
                 </span>
               </div>
-              <p className="text-[#6B7280] text-sm">{policy.clientName}</p>
+              <ClientLink name={policy.clientName} className="text-[#6B7280] text-sm" />
               <p className="text-[#9CA3AF] text-xs mt-0.5">{policy.type} — {policy.insurer}</p>
             </div>
           </div>
@@ -212,7 +213,7 @@ export default function PolizaDetailPage() {
               {policy.clientName.split(" ").map(n => n[0]).join("").slice(0, 2)}
             </div>
             <div>
-              <p className="text-[#1A1F2B] text-lg font-bold">{policy.clientName}</p>
+              <ClientLink name={policy.clientName} className="text-[#1A1F2B] text-lg font-bold" />
               <p className="text-[#6B7280] text-sm">Asegurado principal</p>
             </div>
           </div>

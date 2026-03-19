@@ -1,8 +1,11 @@
 'use client'
 import { useState } from 'react'
 import { MOCK_AUDIT_LOG } from '@/data/mock'
-import { Shield, Search, Download, Filter, AlertTriangle, User, FileText, Brain, Settings, Activity } from 'lucide-react'
+import { Shield, Search, Download, Filter, AlertTriangle, User, FileText, Brain, Settings, Activity, X, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ClientLink } from '@/components/ui'
+
+type AuditEntry = typeof MOCK_AUDIT_LOG[0]
 
 const TIPO_META: Record<string, { color: string; icon: typeof Shield; label: string }> = {
   acceso:     { color: '#69A481', icon: User, label: 'Acceso' },
@@ -16,6 +19,7 @@ const TIPO_META: Record<string, { color: string; icon: typeof Shield; label: str
 export default function CompliancePage() {
   const [search, setSearch] = useState('')
   const [filterTipo, setFilterTipo] = useState<string | null>(null)
+  const [detail, setDetail] = useState<AuditEntry | null>(null)
 
   const filtered = MOCK_AUDIT_LOG.filter(entry => {
     const detalle = (entry as any).detalle || (entry as any).modulo || ''
@@ -36,6 +40,7 @@ export default function CompliancePage() {
   ]
 
   return (
+    <>
     <div className="flex flex-col gap-4">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -88,7 +93,7 @@ export default function CompliancePage() {
             const meta = TIPO_META[entry.tipo] || { color: '#9CA3AF', icon: Shield, label: entry.tipo }
             const Icon = meta.icon
             return (
-              <div key={entry.id} className="grid grid-cols-6 gap-3 px-3 py-3 border-b border-[#D1D5DB]/10 last:border-0 hover:bg-white/30 rounded-xl transition-colors items-center">
+              <div key={entry.id} onClick={() => setDetail(entry)} className="grid grid-cols-6 gap-3 px-3 py-3 border-b border-[#D1D5DB]/10 last:border-0 hover:bg-white/40 rounded-xl transition-colors items-center cursor-pointer">
                 <p className="text-[11px] text-[#9CA3AF] font-mono">{(entry as any).hora || (entry as any).fecha || ''}</p>
                 <div className="flex items-center gap-1.5">
                   <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: `${meta.color}15` }}>
@@ -96,7 +101,7 @@ export default function CompliancePage() {
                   </div>
                   <span className="text-[11px]" style={{ color: meta.color }}>{meta.label}</span>
                 </div>
-                <p className="text-[12px] text-[#1A1F2B] truncate">{entry.usuario}</p>
+                <ClientLink name={entry.usuario} plain className="text-[12px] truncate" />
                 <p className="text-[12px] text-[#6B7280] truncate">{entry.accion}</p>
                 <p className="text-[11px] text-[#9CA3AF] truncate">{(entry as any).detalle || (entry as any).modulo || ''}</p>
                 <p className="text-[11px] text-[#B5BFC6] font-mono">{entry.ip}</p>
@@ -106,5 +111,47 @@ export default function CompliancePage() {
         </div>
       </div>
     </div>
+
+      {/* Modal detalle entrada */}
+      {detail && (() => {
+        const meta = TIPO_META[detail.tipo] || { color: '#9CA3AF', icon: Shield, label: detail.tipo }
+        const Icon = meta.icon
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(10px)', background: 'rgba(26,31,43,0.4)' }}>
+            <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm p-6 shadow-[−20px_−20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.25)] relative flex flex-col gap-4">
+              <button onClick={() => setDetail(null)} className="absolute top-5 right-5 text-[#9CA3AF] hover:text-[#7C1F31] transition-colors"><X size={16} /></button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${meta.color}18` }}>
+                  <Icon size={18} style={{ color: meta.color }} />
+                </div>
+                <div>
+                  <p className="text-[15px] text-[#1A1F2B]">Detalle de evento</p>
+                  <p className="text-[11px]" style={{ color: meta.color }}>{meta.label}</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3">
+                {[
+                  { label: 'Hora', val: (detail as any).hora || (detail as any).fecha || '' },
+                  { label: 'Usuario', val: detail.usuario },
+                  { label: 'Accion', val: detail.accion },
+                  { label: 'Detalle', val: (detail as any).detalle || (detail as any).modulo || '' },
+                  { label: 'IP', val: detail.ip },
+                  { label: 'Tipo', val: meta.label },
+                ].map(f => f.val ? (
+                  <div key={f.label} className="flex items-start gap-3">
+                    <p className="text-[11px] text-[#9CA3AF] w-16 shrink-0 pt-0.5">{f.label}</p>
+                    <p className="text-[13px] text-[#1A1F2B] flex-1">{f.val}</p>
+                  </div>
+                ) : null)}
+              </div>
+              <button onClick={() => setDetail(null)}
+                className="w-full py-2.5 rounded-2xl text-[13px] text-[#6B7280] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#F7941D] transition-colors bg-[#EFF2F9]">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+  </>
   )
 }

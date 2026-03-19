@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { MOCK_CONVERSATIONS } from '@/data/mock'
 import { Search, Send, Paperclip, Smartphone, Mail, MessageSquare, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ClientLink } from '@/components/ui'
 
 const CANAL_ICON: Record<string, string> = {
   whatsapp: 'Smartphone',
@@ -87,7 +88,7 @@ export default function MensajesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <p className="text-[12px] text-[#1A1F2B] truncate">{c.clientName}</p>
+                      <ClientLink name={c.clientName} plain className="text-[12px] truncate" />
                       {(c.unread || 0) > 0 && (
                         <span className="text-[10px] text-white px-1.5 py-0.5 rounded-full shrink-0 bg-[#F7941D]">{c.unread}</span>
                       )}
@@ -110,7 +111,7 @@ export default function MensajesPage() {
                 <CanalIcon canal={conv.canal} />
               </div>
               <div>
-                <p className="text-[13px] text-[#1A1F2B]">{conv.clientName}</p>
+                <ClientLink name={conv.clientName} plain className="text-[13px]" />
                 <div className="flex items-center gap-1.5">
                   <Circle size={6} className="fill-[#69A481] text-[#69A481]" />
                   <p className="text-[11px] text-[#9CA3AF]">En linea · {conv.canal}</p>

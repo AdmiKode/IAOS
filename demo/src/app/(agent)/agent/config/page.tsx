@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Camera, Bell, Moon, Globe, Shield, LogOut, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { NeuSelect } from "@/components/ui";
 
 const IDIOMAS = ["Español (México)", "Español (España)", "English (US)"];
 
@@ -97,10 +98,11 @@ export default function ConfigPage() {
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-[#6B7280] text-xs font-semibold tracking-wider uppercase">Idioma</label>
-            <select value={idioma} onChange={e => setIdioma(e.target.value)}
-              className="input-neu text-sm appearance-none bg-[#EFF2F9]">
-              {IDIOMAS.map(l => <option key={l}>{l}</option>)}
-            </select>
+            <NeuSelect
+              value={idioma}
+              onChange={setIdioma}
+              options={IDIOMAS.map(l => ({ value: l, label: l }))}
+            />
           </div>
         </div>
 

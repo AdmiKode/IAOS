@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { Brain, Zap, DollarSign, Activity, Edit2, Save, X, Plus, ToggleLeft, ToggleRight, TrendingUp } from 'lucide-react'
+import { Brain, Zap, DollarSign, Activity, Edit2, Save, X, Plus, ToggleLeft, ToggleRight, TrendingUp, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ClientLink } from '@/components/ui'
 
 const PROMPTS_MOCK = [
   { id: 'p1', nombre: 'Asistente principal XORIA', tipo: 'sistema', activo: true, tokens: 420, texto: 'Eres XORIA, un asistente de seguros experto. Respondes en espanol formal. Tienes acceso a pólizas, clientes, siniestros y pagos. Nunca inventas datos.' },
@@ -27,6 +28,12 @@ export default function IAControlPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [tab, setTab] = useState<'prompts' | 'logs' | 'costos'>('prompts')
+  const [showNew, setShowNew] = useState(false)
+  const [newSaved, setNewSaved] = useState(false)
+  const [newPrompt, setNewPrompt] = useState({ nombre: '', tipo: 'workflow', texto: '' })
+
+  function openNew() { setShowNew(true); setNewSaved(false); setNewPrompt({ nombre: '', tipo: 'workflow', texto: '' }) }
+  function saveNew() { setNewSaved(true); setTimeout(() => setShowNew(false), 1600) }
 
   const totalTokens = LOGS_MOCK.reduce((acc, l) => acc + l.tokens, 0)
   const totalCost = LOGS_MOCK.reduce((acc, l) => acc + parseFloat(l.costo.replace('$', '')), 0).toFixed(3)
@@ -39,6 +46,7 @@ export default function IAControlPage() {
   }
 
   return (
+    <>
     <div className="flex flex-col gap-4">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -117,7 +125,7 @@ export default function IAControlPage() {
               )}
             </div>
           ))}
-          <button className="flex items-center gap-2 text-[12px] text-[#9CA3AF] hover:text-[#F7941D] transition-colors px-2">
+          <button onClick={openNew} className="flex items-center gap-2 text-[12px] text-[#9CA3AF] hover:text-[#F7941D] transition-colors px-2">
             <Plus size={14} />
             Agregar prompt
           </button>
@@ -135,7 +143,7 @@ export default function IAControlPage() {
           {LOGS_MOCK.map(l => (
             <div key={l.id} className="grid grid-cols-6 gap-3 px-3 py-3 border-b border-[#D1D5DB]/10 last:border-0 hover:bg-white/30 rounded-xl transition-colors items-center">
               <p className="text-[11px] text-[#9CA3AF] font-mono">{l.hora}</p>
-              <p className="text-[12px] text-[#1A1F2B] truncate">{l.usuario}</p>
+              <ClientLink name={l.usuario} plain className="text-[12px] truncate" />
               <p className="text-[11px] text-[#6B7280] truncate">{l.modelo}</p>
               <p className="text-[12px] text-[#6B7280] truncate">{l.accion}</p>
               <p className="text-[12px] text-[#F7941D]">{l.tokens.toLocaleString()}</p>
@@ -183,5 +191,60 @@ export default function IAControlPage() {
         </div>
       )}
     </div>
+
+      {/* Modal nuevo prompt */}
+      {showNew && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(10px)', background: 'rgba(26,31,43,0.4)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-md p-6 shadow-[−20px_−20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.25)] relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setShowNew(false)} className="absolute top-5 right-5 text-[#9CA3AF] hover:text-[#7C1F31] transition-colors"><X size={16} /></button>
+            {newSaved ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <CheckCircle size={40} className="text-[#69A481]" />
+                <p className="text-[14px] text-[#1A1F2B]">Prompt creado</p>
+                <p className="text-[12px] text-[#9CA3AF]">Disponible en el sistema de IA</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-[16px] text-[#1A1F2B]">Nuevo prompt</h2>
+                  <p className="text-[12px] text-[#9CA3AF] mt-0.5">Define una instruccion para el sistema de IA</p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-[11px] text-[#9CA3AF] mb-1 block">Nombre del prompt *</label>
+                    <input value={newPrompt.nombre} onChange={e => setNewPrompt(p => ({ ...p, nombre: e.target.value }))} placeholder="Ej. Resumen de renovacion"
+                      className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6]" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-[#9CA3AF] mb-1 block">Tipo</label>
+                    <div className="flex gap-2">
+                      {['sistema', 'workflow', 'analisis'].map(t => (
+                        <button key={t} onClick={() => setNewPrompt(p => ({ ...p, tipo: t }))}
+                          className="flex-1 py-2 rounded-xl text-[11px] capitalize transition-all"
+                          style={{ background: newPrompt.tipo === t ? `${TIPO_COLOR[t]}20` : '#EFF2F9', color: newPrompt.tipo === t ? TIPO_COLOR[t] : '#9CA3AF', boxShadow: newPrompt.tipo === t ? `0 0 0 1.5px ${TIPO_COLOR[t]}40` : '-2px -2px 5px #FAFBFF, 2px 2px 5px rgba(22,27,29,0.10)' }}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-[#9CA3AF] mb-1 block">Instruccion *</label>
+                    <textarea value={newPrompt.texto} onChange={e => setNewPrompt(p => ({ ...p, texto: e.target.value }))} rows={5}
+                      placeholder="Escribe la instruccion para el modelo de IA..."
+                      className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none resize-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6]" />
+                    <p className="text-[10px] text-[#B5BFC6] mt-1">{newPrompt.texto.split(' ').filter(Boolean).length * 1.3 | 0} tokens estimados</p>
+                  </div>
+                </div>
+                <button onClick={saveNew} disabled={!newPrompt.nombre || !newPrompt.texto}
+                  className="w-full py-3 rounded-2xl text-white text-[13px] disabled:opacity-40 shadow-[0_4px_14px_rgba(247,148,29,0.3)] hover:brightness-110 transition-all"
+                  style={{ background: '#F7941D' }}>
+                  Crear prompt
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+  </>
   )
 }

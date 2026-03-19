@@ -1,42 +1,17 @@
+'use client'
 import Link from 'next/link'
-import { Metadata } from 'next'
-
-export const metadata: Metadata = {
-  title: 'Insurance Agent OS — Plataforma de Gestión para Agentes',
-  description: 'El sistema operativo para agentes de seguros modernos. IA, pipeline, cotizador y más.',
-}
+import Image from 'next/image'
+import { useState } from 'react'
+import { X, CreditCard, Lock, CheckCircle, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const FEATURES = [
-  {
-    title: 'XORIA — IA Conversacional',
-    desc: 'Asistente inteligente con acceso a tu cartera, agenda y pipeline. Responde en segundos.',
-    color: '#F7941D',
-  },
-  {
-    title: 'Pipeline Kanban',
-    desc: 'Visualiza y gestiona cada prospecto desde primer contacto hasta emisión.',
-    color: '#69A481',
-  },
-  {
-    title: 'Cotizador Multi-aseguradora',
-    desc: 'Compara primas de múltiples aseguradoras en un solo flujo guiado.',
-    color: '#7C1F31',
-  },
-  {
-    title: 'Renovaciones Inteligentes',
-    desc: 'Alertas automáticas antes del vencimiento. Retención sin esfuerzo.',
-    color: '#1A1F2B',
-  },
-  {
-    title: 'Portal del Asegurado',
-    desc: 'Tu cliente consulta pólizas, pagos y abre siniestros sin llamarte.',
-    color: '#F7941D',
-  },
-  {
-    title: 'Voz IA en Tiempo Real',
-    desc: 'Dicta notas, consulta tu cartera y responde mensajes con tu voz.',
-    color: '#69A481',
-  },
+  { title: 'XORIA — IA Conversacional', desc: 'Asistente inteligente con acceso a tu cartera, agenda y pipeline. Responde en segundos.', color: '#F7941D' },
+  { title: 'Pipeline Kanban', desc: 'Visualiza y gestiona cada prospecto desde primer contacto hasta emisión.', color: '#69A481' },
+  { title: 'Cotizador Multi-aseguradora', desc: 'Compara primas de múltiples aseguradoras en un solo flujo guiado.', color: '#7C1F31' },
+  { title: 'Renovaciones Inteligentes', desc: 'Alertas automáticas antes del vencimiento. Retención sin esfuerzo.', color: '#1A1F2B' },
+  { title: 'Portal del Asegurado', desc: 'Tu cliente consulta pólizas, pagos y abre siniestros sin llamarte.', color: '#F7941D' },
+  { title: 'Voz IA en Tiempo Real', desc: 'Dicta notas, consulta tu cartera y responde mensajes con tu voz.', color: '#69A481' },
 ]
 
 const STATS = [
@@ -46,17 +21,53 @@ const STATS = [
   { value: '<2 min', label: 'tiempo de cotización' },
 ]
 
+const PLANS = [
+  { id: 'agente', name: 'Agente', price: '$299', period: '/mes', features: ['1 usuario', 'Hasta 200 pólizas', 'XORIA básico', 'Portal cliente'], highlight: false },
+  { id: 'profesional', name: 'Profesional', price: '$599', period: '/mes', features: ['3 usuarios', 'Pólizas ilimitadas', 'XORIA avanzado', 'Voz IA', 'Cotizador multi-aseg.'], highlight: true },
+  { id: 'agencia', name: 'Agencia', price: '$1,299', period: '/mes', features: ['Usuarios ilimitados', 'Multi-sucursal', 'IA personalizada', 'API access', 'Soporte prioritario'], highlight: false },
+]
+
+type PayStep = 'form' | 'processing' | 'done'
+
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
+
 export default function LandingPage() {
+  const [payModal, setPayModal] = useState<typeof PLANS[0] | null>(null)
+  const [payStep, setPayStep] = useState<PayStep>('form')
+  const [card, setCard] = useState({ nombre: '', numero: '', expiry: '', cvv: '' })
+
+  function openPay(plan: typeof PLANS[0]) {
+    setPayModal(plan); setPayStep('form')
+    setCard({ nombre: '', numero: '', expiry: '', cvv: '' })
+  }
+  function handlePay() {
+    setPayStep('processing')
+    setTimeout(() => setPayStep('done'), 2500)
+  }
+  function formatCard(v: string) { return v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim() }
+  function formatExpiry(v: string) { const d = v.replace(/\D/g, '').slice(0, 4); return d.length >= 3 ? d.slice(0, 2) + '/' + d.slice(2) : d }
+
   return (
     <div className="relative min-h-screen bg-[#EFF2F9] overflow-x-hidden font-[Questrial]">
 
       {/* Esferas decorativas de fondo */}
       <div
         aria-hidden
-        className="fixed top-[-180px] left-[-140px] w-[520px] h-[520px] rounded-full pointer-events-none z-0"
+        className="fixed top-[-280px] left-[-260px] w-[520px] h-[520px] rounded-full pointer-events-none z-0"
         style={{
           background: 'radial-gradient(circle at 40% 40%, rgba(247,148,29,0.22), rgba(247,148,29,0.04) 70%)',
           filter: 'blur(60px)',
+        }}
+      />
+      {/* Esfera pequeña decorativa alejada del logo */}
+      <div
+        aria-hidden
+        className="fixed top-[140px] left-[-80px] w-[200px] h-[200px] rounded-full pointer-events-none z-0"
+        style={{
+          background: 'radial-gradient(circle at 40% 40%, rgba(247,148,29,0.14), rgba(247,148,29,0.02) 70%)',
+          filter: 'blur(40px)',
         }}
       />
       <div
@@ -79,27 +90,26 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between max-w-6xl mx-auto px-8 py-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#F7941D] flex items-center justify-center shadow-[0_4px_16px_rgba(247,148,29,0.4)]">
-            <span className="text-white text-lg font-bold tracking-tighter">IA</span>
-          </div>
-          <div>
-            <p className="text-[#1A1F2B] text-base font-semibold tracking-tight leading-none">Insurance</p>
-            <p className="text-[#F7941D] text-[11px] tracking-[0.2em] uppercase leading-none">Agent OS</p>
+          <div className="relative">
+            <Image src="/logo.png" alt="IAOS" width={130} height={44} className="h-11 w-auto object-contain relative z-10" />
           </div>
         </div>
 
         <div className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-[#6B7280] text-sm hover:text-[#1A1F2B] transition-colors">Funciones</a>
-          <a href="#stats" className="text-[#6B7280] text-sm hover:text-[#1A1F2B] transition-colors">Resultados</a>
-          <a href="#pricing" className="text-[#6B7280] text-sm hover:text-[#1A1F2B] transition-colors">Planes</a>
+          <button onClick={() => scrollTo('features')} className="text-[#6B7280] text-sm hover:text-[#1A1F2B] transition-colors">Funciones</button>
+          <button onClick={() => scrollTo('stats')} className="text-[#6B7280] text-sm hover:text-[#1A1F2B] transition-colors">Resultados</button>
+          <button onClick={() => scrollTo('pricing')} className="text-[#6B7280] text-sm hover:text-[#1A1F2B] transition-colors">Planes</button>
+          <button onClick={() => scrollTo('footer-section')} className="text-[#6B7280] text-sm hover:text-[#1A1F2B] transition-colors">Contacto</button>
         </div>
 
-        <Link
-          href="/login"
-          className="px-5 py-2.5 rounded-2xl bg-[#F7941D] text-white text-sm font-semibold shadow-[0_4px_16px_rgba(247,148,29,0.35)] hover:shadow-[0_6px_24px_rgba(247,148,29,0.45)] hover:bg-[#e08019] transition-all duration-200"
-        >
-          Acceder
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/register" className="px-4 py-2.5 rounded-2xl text-[#6B7280] text-sm font-medium hover:text-[#1A1F2B] transition-colors">
+            Registrarse
+          </Link>
+          <Link href="/login" className="px-5 py-2.5 rounded-2xl bg-[#F7941D] text-white text-sm font-semibold shadow-[0_4px_16px_rgba(247,148,29,0.35)] hover:bg-[#e08019] transition-all">
+            Acceder
+          </Link>
+        </div>
       </nav>
 
       {/* Hero */}
@@ -124,18 +134,16 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-wrap gap-4">
-            <Link
-              href="/login"
-              className="px-8 py-4 rounded-2xl bg-[#F7941D] text-white font-semibold text-base shadow-[0_8px_24px_rgba(247,148,29,0.40)] hover:shadow-[0_12px_32px_rgba(247,148,29,0.50)] hover:bg-[#e08019] transition-all duration-200"
+            <Link href="/register"
+              className="px-8 py-4 rounded-2xl bg-[#F7941D] text-white font-semibold text-base shadow-[0_8px_24px_rgba(247,148,29,0.40)] hover:bg-[#e08019] transition-all duration-200"
             >
-              Probar demo gratis
+              Comenzar gratis
             </Link>
-            <a
-              href="#features"
+            <button onClick={() => scrollTo('features')}
               className="px-8 py-4 rounded-2xl font-semibold text-base text-[#6B7280] bg-[#EFF2F9] shadow-[-4px_-4px_8px_#FAFBFF,4px_4px_8px_rgba(22,27,29,0.12)] hover:text-[#1A1F2B] transition-all duration-200"
             >
               Ver funciones
-            </a>
+            </button>
           </div>
 
           <p className="text-[#9CA3AF] text-xs mt-6">
@@ -161,9 +169,9 @@ export default function LandingPage() {
                 <div className="h-3 w-24 rounded bg-[#1A1F2B]/10 mb-1.5" />
                 <div className="h-2 w-16 rounded bg-[#6B7280]/15" />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-[#F7941D]/20" />
-                <div className="w-7 h-7 rounded-full bg-[#69A481]/20" />
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-[#69A481]" />
+                <span className="text-[9px] text-[#69A481] font-medium">En línea</span>
               </div>
             </div>
 
@@ -209,8 +217,8 @@ export default function LandingPage() {
               }}
             >
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-[#F7941D] flex items-center justify-center">
-                  <span className="text-white text-[8px] font-bold">X</span>
+                <div className="w-6 h-6 rounded-full overflow-hidden shrink-0">
+                  <Image src="/Icono xoria.png" alt="XORIA" width={24} height={24} className="object-cover w-full h-full" />
                 </div>
                 <span className="text-[10px] font-semibold text-[#1A1F2B]">XORIA</span>
               </div>
@@ -293,9 +301,9 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { name: 'Agente', price: '$299', period: '/mes', features: ['1 usuario', 'Hasta 200 pólizas', 'XORIA básico', 'Portal cliente'], highlight: false },
-            { name: 'Profesional', price: '$599', period: '/mes', features: ['3 usuarios', 'Pólizas ilimitadas', 'XORIA avanzado', 'Voz IA', 'Cotizador multi-aseg.'], highlight: true },
-            { name: 'Agencia', price: '$1,299', period: '/mes', features: ['Usuarios ilimitados', 'Multi-sucursal', 'IA personalizada', 'API access', 'Soporte prioritario'], highlight: false },
+            { id: 'agente', name: 'Agente', price: '$299', period: '/mes', features: ['1 usuario', 'Hasta 200 pólizas', 'XORIA básico', 'Portal cliente'], highlight: false },
+            { id: 'profesional', name: 'Profesional', price: '$599', period: '/mes', features: ['3 usuarios', 'Pólizas ilimitadas', 'XORIA avanzado', 'Voz IA', 'Cotizador multi-aseg.'], highlight: true },
+            { id: 'agencia', name: 'Agencia', price: '$1,299', period: '/mes', features: ['Usuarios ilimitados', 'Multi-sucursal', 'IA personalizada', 'API access', 'Soporte prioritario'], highlight: false },
           ].map((p) => (
             <div
               key={p.name}
@@ -337,8 +345,8 @@ export default function LandingPage() {
                 ))}
               </ul>
 
-              <Link
-                href="/login"
+              <button
+                onClick={() => openPay(p)}
                 className={`w-full text-center py-3.5 rounded-2xl font-semibold text-sm transition-all duration-200 ${
                   p.highlight
                     ? 'bg-[#F7941D] text-white shadow-[0_4px_16px_rgba(247,148,29,0.4)] hover:bg-[#e08019]'
@@ -346,29 +354,127 @@ export default function LandingPage() {
                 }`}
               >
                 Comenzar
-              </Link>
+              </button>
             </div>
           ))}
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 bg-[#1A1F2B] py-12">
+      <footer id="footer-section" className="relative z-10 bg-[#1A1F2B] py-12">
         <div className="max-w-6xl mx-auto px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-[#F7941D] flex items-center justify-center">
-              <span className="text-white text-sm font-bold">IA</span>
-            </div>
-            <span className="text-[#9CA3AF] text-sm">Insurance Agent OS</span>
+            <Image src="/logo.png" alt="IAOS" width={100} height={34} className="h-8 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }} />
           </div>
           <p className="text-[#6B7280] text-xs text-center">
             Todos los datos en el demo son ficticios. Solo para demostración.
           </p>
-          <Link href="/login" className="text-[#F7941D] text-sm font-semibold hover:text-[#e08019] transition-colors">
-            Ingresar al demo
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/register" className="text-[#9CA3AF] text-sm hover:text-white transition-colors">Registro</Link>
+            <Link href="/login" className="text-[#F7941D] text-sm font-semibold hover:text-[#e08019] transition-colors">
+              Ingresar al demo
+            </Link>
+          </div>
         </div>
       </footer>
+
+      {/* Modal pago Stripe simulado */}
+      {payModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(26,31,43,0.6)', backdropFilter: 'blur(12px)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-md shadow-[-16px_-16px_32px_#FAFBFF,16px_16px_32px_rgba(22,27,29,0.22)]">
+            <div className="flex items-center justify-between p-5 border-b border-[#D1D5DB]/20">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#F7941D]/10 flex items-center justify-center">
+                  <CreditCard size={15} className="text-[#F7941D]" />
+                </div>
+                <div>
+                  <p className="text-[14px] text-[#1A1F2B]">Plan {payModal.name}</p>
+                  <p className="text-[11px] text-[#9CA3AF]">{payModal.price}{payModal.period} · Facturación mensual</p>
+                </div>
+              </div>
+              <button onClick={() => setPayModal(null)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#7C1F31] transition-colors">
+                <X size={13} />
+              </button>
+            </div>
+            <div className="p-5">
+              {payStep === 'done' ? (
+                <div className="flex flex-col items-center gap-4 py-6 text-center">
+                  <div className="w-16 h-16 rounded-full bg-[#69A481]/15 flex items-center justify-center">
+                    <CheckCircle size={32} className="text-[#69A481]" />
+                  </div>
+                  <div>
+                    <p className="text-[16px] text-[#1A1F2B] mb-1">Pago procesado</p>
+                    <p className="text-[13px] text-[#9CA3AF]">Plan {payModal.name} activado. Crea tu cuenta para continuar.</p>
+                  </div>
+                  <Link href={`/register?plan=${payModal.id}`} onClick={() => setPayModal(null)}
+                    className="w-full py-3.5 rounded-xl bg-[#F7941D] text-white text-[13px] font-medium text-center hover:bg-[#E8820A] transition-colors shadow-[0_4px_12px_rgba(247,148,29,0.3)]">
+                    Crear mi cuenta
+                  </Link>
+                </div>
+              ) : payStep === 'processing' ? (
+                <div className="flex flex-col items-center gap-4 py-8 text-center">
+                  <Loader2 size={32} className="text-[#F7941D] animate-spin" />
+                  <p className="text-[14px] text-[#1A1F2B]">Procesando pago...</p>
+                  <p className="text-[12px] text-[#9CA3AF]">Conectando con Stripe · Por favor espera</p>
+                  <div className="w-full h-1.5 bg-[#D1D5DB]/30 rounded-full overflow-hidden mt-2">
+                    <div className="h-full bg-[#F7941D] rounded-full" style={{ width: '85%', transition: 'width 2.5s ease' }} />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[inset_-2px_-2px_6px_#FAFBFF,inset_2px_2px_6px_rgba(22,27,29,0.08)] flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] text-[#9CA3AF]">Total a cobrar hoy</p>
+                      <p className="text-[22px] text-[#F7941D] font-semibold">{payModal.price} MXN</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] text-[#69A481]">
+                      <Lock size={11} />
+                      Pago seguro
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Nombre en la tarjeta</label>
+                    <input value={card.nombre} onChange={e => setCard(p => ({ ...p, nombre: e.target.value }))}
+                      placeholder="Como aparece en tu tarjeta"
+                      className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Numero de tarjeta</label>
+                    <div className="relative">
+                      <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                      <input value={card.numero} onChange={e => setCard(p => ({ ...p, numero: formatCard(e.target.value) }))}
+                        placeholder="1234 5678 9012 3456"
+                        className="w-full bg-[#EFF2F9] pl-9 pr-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Vencimiento</label>
+                      <input value={card.expiry} onChange={e => setCard(p => ({ ...p, expiry: formatExpiry(e.target.value) }))}
+                        placeholder="MM/AA"
+                        className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">CVV</label>
+                      <input value={card.cvv} onChange={e => setCard(p => ({ ...p, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                        placeholder="123"
+                        className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                    </div>
+                  </div>
+                  <button onClick={handlePay}
+                    disabled={!card.nombre || card.numero.length < 19 || card.expiry.length < 5 || card.cvv.length < 3}
+                    className="w-full py-3.5 rounded-xl bg-[#F7941D] text-white text-[13px] font-medium hover:bg-[#E8820A] transition-colors shadow-[0_4px_12px_rgba(247,148,29,0.3)] disabled:opacity-40 flex items-center justify-center gap-2">
+                    <Lock size={13} />
+                    Pagar {payModal.price} MXN
+                  </button>
+                  <p className="text-[10px] text-[#9CA3AF] text-center">Simulacion de pago — no se realizara ningun cargo real</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

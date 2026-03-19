@@ -1,8 +1,9 @@
 'use client'
-import { MOCK_LEADS, PIPELINE_STAGES } from '@/data/mock'
-import { Plus, Search, X, Mail, Phone, Calendar, TrendingUp, Star } from 'lucide-react'
+import { MOCK_LEADS, PIPELINE_STAGES, MOCK_ASEGURADORAS, MOCK_RAMOS } from '@/data/mock'
+import { Plus, Search, X, Mail, Phone, Calendar, TrendingUp, Star, CheckCircle, ArrowRight, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
+import { ClientLink, NeuSelect } from '@/components/ui'
 
 const STAGE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   nuevo:         { bg: 'bg-[#9CA3AF]/12', text: 'text-[#9CA3AF]', dot: '#9CA3AF' },
@@ -18,6 +19,34 @@ const STAGE_COLORS: Record<string, { bg: string; text: string; dot: string }> = 
 export default function PipelinePage() {
   const [search, setSearch] = useState('')
   const [selectedLead, setSelectedLead] = useState<typeof MOCK_LEADS[0] | null>(null)
+  const [showNewLead, setShowNewLead] = useState(false)
+  const [leadSaved, setLeadSaved] = useState(false)
+  const [newLead, setNewLead] = useState({ nombre: '', telefono: '', email: '', ramo: '', aseguradora: '', etapa: 'nuevo', valor: '' })
+  const [showAdvance, setShowAdvance] = useState(false)
+  const [advanceSaved, setAdvanceSaved] = useState(false)
+  const [advanceTarget, setAdvanceTarget] = useState('')
+  const [showNote, setShowNote] = useState(false)
+  const [notaSaved, setNotaSaved] = useState(false)
+  const [notaText, setNotaText] = useState('')
+
+  function openNewLead() {
+    setShowNewLead(true); setLeadSaved(false)
+    setNewLead({ nombre: '', telefono: '', email: '', ramo: '', aseguradora: '', etapa: 'nuevo', valor: '' })
+  }
+  function handleSaveLead() {
+    setLeadSaved(true)
+    setTimeout(() => setShowNewLead(false), 1800)
+  }
+
+  function handleAdvance() {
+    setAdvanceSaved(true)
+    setTimeout(() => { setShowAdvance(false); setAdvanceSaved(false); setAdvanceTarget('') }, 1800)
+  }
+
+  function handleSaveNote() {
+    setNotaSaved(true)
+    setTimeout(() => { setShowNote(false); setNotaSaved(false); setNotaText('') }, 1800)
+  }
 
   const filtered = MOCK_LEADS.filter(l =>
     l.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -26,6 +55,7 @@ export default function PipelinePage() {
   )
 
   return (
+    <>
     <div className="flex flex-col gap-4 h-full">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -38,7 +68,7 @@ export default function PipelinePage() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar prospecto..."
               className="w-[200px] bg-[#EFF2F9] rounded-xl pl-8 pr-3 py-2 text-[12px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#9CA3AF]" />
           </div>
-          <button className="flex items-center gap-2 h-9 px-4 bg-[#F7941D] rounded-xl text-white text-[12px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
+          <button onClick={openNewLead} className="flex items-center gap-2 h-9 px-4 bg-[#F7941D] rounded-xl text-white text-[12px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
             <Plus size={13} />
             Nuevo
           </button>
@@ -64,7 +94,7 @@ export default function PipelinePage() {
                       className={cn('w-full text-left bg-[#EFF2F9] rounded-xl p-3 transition-all',
                         selectedLead?.id === lead.id ? 'shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] border-l-2 border-[#F7941D]' : 'shadow-[-4px_-4px_10px_#FAFBFF,4px_4px_10px_rgba(22,27,29,0.14)] hover:shadow-[-6px_-6px_12px_#FAFBFF,6px_6px_12px_rgba(22,27,29,0.18)]')}>
                       <div className="flex items-start justify-between gap-1 mb-1">
-                        <p className="text-[12px] text-[#1A1F2B] leading-tight">{lead.name}</p>
+                        <ClientLink name={lead.name} plain className="text-[12px] leading-tight" />
                         <span className={cn('text-[9px] px-1.5 py-0.5 rounded-md shrink-0', color.bg, color.text)}>{lead.score}%</span>
                       </div>
                       <p className="text-[10px] text-[#9CA3AF] truncate">{lead.product || lead.ramo}</p>
@@ -90,7 +120,7 @@ export default function PipelinePage() {
           <div className="w-[280px] shrink-0 bg-[#EFF2F9] rounded-2xl p-5 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.14)] flex flex-col gap-4 overflow-y-auto">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-[14px] text-[#1A1F2B]">{selectedLead.name}</p>
+                <ClientLink name={selectedLead.name} plain className="text-[14px]" />
                 <p className="text-[11px] text-[#9CA3AF]">{selectedLead.email || 'Sin email'}</p>
               </div>
               <button onClick={() => setSelectedLead(null)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#7C1F31] transition-colors shrink-0">
@@ -148,16 +178,226 @@ export default function PipelinePage() {
 
             {/* Acciones */}
             <div className="flex flex-col gap-2 mt-auto">
-              <button className="w-full py-2.5 bg-[#F7941D] rounded-xl text-white text-[12px] shadow-[0_3px_10px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-all">
+              <button
+                onClick={() => { setShowAdvance(true); setAdvanceSaved(false); setAdvanceTarget('') }}
+                className="w-full py-2.5 bg-[#F7941D] rounded-xl text-white text-[12px] shadow-[0_3px_10px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-all">
                 Avanzar etapa
               </button>
-              <button className="w-full py-2.5 bg-[#EFF2F9] rounded-xl text-[#6B7280] text-[12px] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#F7941D] transition-all">
+              <button
+                onClick={() => { setShowNote(true); setNotaSaved(false); setNotaText('') }}
+                className="w-full py-2.5 bg-[#EFF2F9] rounded-xl text-[#6B7280] text-[12px] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#F7941D] transition-all">
                 Agregar nota
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Modal nuevo prospecto */}
+      {showNewLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(10px)', background: 'rgba(26,31,43,0.4)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-md p-6 shadow-[−20px_−20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.25)] relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setShowNewLead(false)} className="absolute top-5 right-5 text-[#9CA3AF] hover:text-[#7C1F31] transition-colors">
+              <X size={16} />
+            </button>
+            <div>
+              <h2 className="text-[16px] text-[#1A1F2B]">Nuevo prospecto</h2>
+              <p className="text-[12px] text-[#9CA3AF] mt-0.5">Captura los datos del prospecto</p>
+            </div>
+
+            {leadSaved ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <CheckCircle size={40} className="text-[#69A481]" />
+                <p className="text-[14px] text-[#1A1F2B]">Prospecto registrado</p>
+                <p className="text-[12px] text-[#9CA3AF]">Se agrego al pipeline en la etapa seleccionada</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-[11px] text-[#9CA3AF] mb-1 block">Nombre completo *</label>
+                    <input value={newLead.nombre} onChange={e => setNewLead(p => ({ ...p, nombre: e.target.value }))} placeholder="Ej. Maria Lopez"
+                      className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6]" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[#9CA3AF] mb-1 block">Telefono</label>
+                      <input value={newLead.telefono} onChange={e => setNewLead(p => ({ ...p, telefono: e.target.value }))} placeholder="55 1234 5678"
+                        className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6]" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-[#9CA3AF] mb-1 block">Email</label>
+                      <input value={newLead.email} onChange={e => setNewLead(p => ({ ...p, email: e.target.value }))} placeholder="correo@ejemplo.com"
+                        className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6]" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[#9CA3AF] mb-1 block">Ramo</label>
+                      <NeuSelect
+                        value={newLead.ramo}
+                        onChange={v => setNewLead(p => ({ ...p, ramo: v }))}
+                        placeholder="Seleccionar"
+                        options={MOCK_RAMOS.map(r => ({ value: r.nombre, label: r.nombre }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-[#9CA3AF] mb-1 block">Aseguradora</label>
+                      <NeuSelect
+                        value={newLead.aseguradora}
+                        onChange={v => setNewLead(p => ({ ...p, aseguradora: v }))}
+                        placeholder="Seleccionar"
+                        options={MOCK_ASEGURADORAS.map(a => ({ value: a.nombre, label: a.nombre }))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-[#9CA3AF] mb-1 block">Etapa inicial</label>
+                    <div className="flex flex-wrap gap-2">
+                      {PIPELINE_STAGES.map(s => (
+                        <button key={s.id} onClick={() => setNewLead(p => ({ ...p, etapa: s.id }))}
+                          className="px-3 py-1.5 rounded-xl text-[11px] transition-all"
+                          style={{ background: newLead.etapa === s.id ? STAGE_COLORS[s.id]?.dot + '22' : '#EFF2F9', color: newLead.etapa === s.id ? STAGE_COLORS[s.id]?.dot : '#9CA3AF', boxShadow: newLead.etapa === s.id ? `0 0 0 1.5px ${STAGE_COLORS[s.id]?.dot}40` : 'none' }}>
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-[#9CA3AF] mb-1 block">Valor estimado (MXN)</label>
+                    <input value={newLead.valor} onChange={e => setNewLead(p => ({ ...p, valor: e.target.value }))} placeholder="Ej. 12,000"
+                      className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6]" />
+                  </div>
+                </div>
+                <button onClick={handleSaveLead} disabled={!newLead.nombre}
+                  className="w-full py-3 rounded-2xl text-white text-[13px] transition-all disabled:opacity-40 shadow-[0_4px_14px_rgba(247,148,29,0.3)] hover:brightness-110"
+                  style={{ background: '#F7941D' }}>
+                  Agregar prospecto
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
+
+      {/* Modal — Avanzar etapa */}
+      {showAdvance && selectedLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(10px)', background: 'rgba(26,31,43,0.4)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm p-6 shadow-[-20px_-20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.25)] relative flex flex-col gap-4">
+            <button onClick={() => setShowAdvance(false)} className="absolute top-5 right-5 text-[#9CA3AF] hover:text-[#7C1F31] transition-colors">
+              <X size={16} />
+            </button>
+            <div>
+              <h2 className="text-[16px] text-[#1A1F2B]">Avanzar etapa</h2>
+              <p className="text-[12px] text-[#9CA3AF] mt-0.5">{selectedLead.name}</p>
+            </div>
+
+            {advanceSaved ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <CheckCircle size={40} className="text-[#69A481]" />
+                <p className="text-[14px] text-[#1A1F2B]">Etapa actualizada</p>
+                <p className="text-[12px] text-[#9CA3AF]">El prospecto avanzó correctamente</p>
+              </div>
+            ) : (
+              <>
+                {/* Etapa actual */}
+                <div className="flex items-center gap-3 bg-white/40 rounded-xl p-3">
+                  <div className="flex flex-col gap-0.5 flex-1">
+                    <p className="text-[10px] text-[#9CA3AF] uppercase tracking-widest">Etapa actual</p>
+                    <p className="text-[13px] text-[#1A1F2B]">
+                      {PIPELINE_STAGES.find(s => s.id === selectedLead.stage)?.label || selectedLead.stage}
+                    </p>
+                  </div>
+                  <ArrowRight size={14} className="text-[#9CA3AF]" />
+                </div>
+
+                {/* Selector de nueva etapa */}
+                <div>
+                  <p className="text-[11px] text-[#9CA3AF] mb-2">Selecciona la nueva etapa</p>
+                  <div className="flex flex-col gap-2">
+                    {PIPELINE_STAGES.filter(s => s.id !== selectedLead.stage).map(s => {
+                      const sc = STAGE_COLORS[s.id]
+                      const isSelected = advanceTarget === s.id
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setAdvanceTarget(s.id)}
+                          className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[12px] transition-all text-left"
+                          style={{
+                            background: isSelected ? (sc?.dot + '18') : '#EFF2F9',
+                            color: isSelected ? sc?.dot : '#6B7280',
+                            boxShadow: isSelected
+                              ? `0 0 0 1.5px ${sc?.dot}50, -2px -2px 5px #FAFBFF, 2px 2px 5px rgba(22,27,29,0.10)`
+                              : '-2px -2px 5px #FAFBFF, 2px 2px 5px rgba(22,27,29,0.10)',
+                          }}>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: sc?.dot || '#9CA3AF' }} />
+                          {s.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleAdvance}
+                  disabled={!advanceTarget}
+                  className="w-full py-3 rounded-2xl text-white text-[13px] transition-all disabled:opacity-40 shadow-[0_4px_14px_rgba(247,148,29,0.3)] hover:brightness-110"
+                  style={{ background: '#F7941D' }}>
+                  Confirmar avance
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal — Agregar nota */}
+      {showNote && selectedLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(10px)', background: 'rgba(26,31,43,0.4)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm p-6 shadow-[-20px_-20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.25)] relative flex flex-col gap-4">
+            <button onClick={() => setShowNote(false)} className="absolute top-5 right-5 text-[#9CA3AF] hover:text-[#7C1F31] transition-colors">
+              <X size={16} />
+            </button>
+            <div>
+              <h2 className="text-[16px] text-[#1A1F2B]">Agregar nota</h2>
+              <p className="text-[12px] text-[#9CA3AF] mt-0.5">{selectedLead.name}</p>
+            </div>
+
+            {notaSaved ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <CheckCircle size={40} className="text-[#69A481]" />
+                <p className="text-[14px] text-[#1A1F2B]">Nota guardada</p>
+                <p className="text-[12px] text-[#9CA3AF]">La nota fue registrada en el expediente</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 text-[11px] text-[#9CA3AF] bg-white/40 rounded-xl px-3 py-2">
+                  <MessageSquare size={12} />
+                  <span>{new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#9CA3AF] mb-1 block">Contenido de la nota *</label>
+                  <textarea
+                    value={notaText}
+                    onChange={e => setNotaText(e.target.value)}
+                    rows={4}
+                    placeholder="Escribe aquí tus observaciones, acuerdos o próximos pasos con el prospecto..."
+                    className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6] resize-none leading-relaxed"
+                  />
+                </div>
+                <button
+                  onClick={handleSaveNote}
+                  disabled={!notaText.trim()}
+                  className="w-full py-3 rounded-2xl text-white text-[13px] transition-all disabled:opacity-40 shadow-[0_4px_14px_rgba(247,148,29,0.3)] hover:brightness-110"
+                  style={{ background: '#F7941D' }}>
+                  Guardar nota
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

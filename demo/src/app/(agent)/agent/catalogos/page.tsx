@@ -1,13 +1,29 @@
 'use client'
 import { useState } from 'react'
 import { MOCK_RAMOS, MOCK_ASEGURADORAS } from '@/data/mock'
-import { Plus, Shield, Tag, Edit2, ToggleLeft, ToggleRight, Search, ChevronRight } from 'lucide-react'
+import { Plus, Shield, Tag, Edit2, ToggleLeft, ToggleRight, Search, ChevronRight, X, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+type EditTarget = { tipo: 'ramo' | 'aseguradora' | 'etapa'; id: string; nombre: string; extra?: string } | null
 
 export default function CatalogosPage() {
   const [tab, setTab] = useState<'ramos' | 'aseguradoras' | 'etapas'>('ramos')
   const [search, setSearch] = useState('')
   const [ramos, setRamos] = useState(MOCK_RAMOS)
+  const [editTarget, setEditTarget] = useState<EditTarget>(null)
+  const [editNombre, setEditNombre] = useState('')
+  const [editSaved, setEditSaved] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [addNombre, setAddNombre] = useState('')
+  const [addCodigo, setAddCodigo] = useState('')
+  const [addSaved, setAddSaved] = useState(false)
+
+  function openEdit(target: EditTarget) {
+    setEditTarget(target); setEditNombre(target?.nombre || ''); setEditSaved(false)
+  }
+  function saveEdit() { setEditSaved(true); setTimeout(() => setEditTarget(null), 1600) }
+  function openAdd() { setShowAdd(true); setAddNombre(''); setAddCodigo(''); setAddSaved(false) }
+  function saveAdd() { setAddSaved(true); setTimeout(() => setShowAdd(false), 1600) }
 
   const ETAPAS = [
     { id: 'e1', nombre: 'Nuevo', descripcion: 'Lead recién ingresado', orden: 1, color: '#9CA3AF' },
@@ -65,7 +81,7 @@ export default function CatalogosPage() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="w-full bg-[#EFF2F9] pl-8 pr-3 py-2 text-[12px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#F7941D] rounded-xl text-white text-[12px] shadow-[0_3px_10px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-all">
+        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#F7941D] rounded-xl text-white text-[12px] shadow-[0_3px_10px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-all">
           <Plus size={13} />
           Agregar
         </button>
@@ -86,7 +102,7 @@ export default function CatalogosPage() {
               <button onClick={() => toggleRamo(r.id)} className="shrink-0 text-[#9CA3AF] hover:text-[#F7941D] transition-colors">
                 {r.activo ? <ToggleRight size={22} style={{ color: '#69A481' }} /> : <ToggleLeft size={22} />}
               </button>
-              <button className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#F7941D] transition-colors">
+              <button onClick={() => openEdit({ tipo: 'ramo', id: r.id, nombre: r.nombre, extra: r.codigo })} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#F7941D] transition-colors">
                 <Edit2 size={12} />
               </button>
             </div>
@@ -108,7 +124,7 @@ export default function CatalogosPage() {
                 <p className="text-[13px] text-[#1A1F2B]">{nombre}</p>
                 <p className="text-[11px] text-[#9CA3AF]">{a.ramos.length} ramos · {a.docs} docs</p>
               </div>
-              <button className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#F7941D] transition-colors">
+              <button onClick={() => openEdit({ tipo: 'aseguradora', id: a.id, nombre })} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#F7941D] transition-colors">
                 <Edit2 size={12} />
               </button>
             </div>
@@ -132,12 +148,90 @@ export default function CatalogosPage() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {i > 0 && <ChevronRight size={14} className="text-[#D1D5DB]" />}
-                <button className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#F7941D] transition-colors">
+                <button onClick={() => openEdit({ tipo: 'etapa', id: e.id, nombre: e.nombre })} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#F7941D] transition-colors">
                   <Edit2 size={12} />
                 </button>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal editar */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(10px)', background: 'rgba(26,31,43,0.4)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm p-6 shadow-[−20px_−20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.25)] relative flex flex-col gap-4">
+            <button onClick={() => setEditTarget(null)} className="absolute top-5 right-5 text-[#9CA3AF] hover:text-[#7C1F31] transition-colors"><X size={16} /></button>
+            {editSaved ? (
+              <div className="flex flex-col items-center gap-3 py-6">
+                <CheckCircle size={36} className="text-[#69A481]" />
+                <p className="text-[14px] text-[#1A1F2B]">Cambios guardados</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-[15px] text-[#1A1F2B]">Editar {editTarget.tipo}</h2>
+                  <p className="text-[12px] text-[#9CA3AF] mt-0.5 capitalize">{editTarget.nombre}</p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-[11px] text-[#9CA3AF] mb-1 block">Nombre</label>
+                    <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
+                      className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)]" />
+                  </div>
+                  {editTarget.extra && (
+                    <div>
+                      <label className="text-[11px] text-[#9CA3AF] mb-1 block">Codigo</label>
+                      <input defaultValue={editTarget.extra}
+                        className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)]" />
+                    </div>
+                  )}
+                </div>
+                <button onClick={saveEdit} disabled={!editNombre}
+                  className="w-full py-3 rounded-2xl text-white text-[13px] disabled:opacity-40 shadow-[0_4px_14px_rgba(247,148,29,0.3)] hover:brightness-110 transition-all"
+                  style={{ background: '#F7941D' }}>Guardar cambios</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal agregar */}
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(10px)', background: 'rgba(26,31,43,0.4)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm p-6 shadow-[−20px_−20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.25)] relative flex flex-col gap-4">
+            <button onClick={() => setShowAdd(false)} className="absolute top-5 right-5 text-[#9CA3AF] hover:text-[#7C1F31] transition-colors"><X size={16} /></button>
+            {addSaved ? (
+              <div className="flex flex-col items-center gap-3 py-6">
+                <CheckCircle size={36} className="text-[#69A481]" />
+                <p className="text-[14px] text-[#1A1F2B]">Elemento creado</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-[15px] text-[#1A1F2B]">Agregar {tab === 'ramos' ? 'ramo' : tab === 'aseguradoras' ? 'aseguradora' : 'etapa'}</h2>
+                  <p className="text-[12px] text-[#9CA3AF] mt-0.5">Completa los datos del nuevo elemento</p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-[11px] text-[#9CA3AF] mb-1 block">Nombre *</label>
+                    <input value={addNombre} onChange={e => setAddNombre(e.target.value)} placeholder="Ej. Vida Grupo"
+                      className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6]" />
+                  </div>
+                  {tab !== 'etapas' && (
+                    <div>
+                      <label className="text-[11px] text-[#9CA3AF] mb-1 block">Codigo / Clave</label>
+                      <input value={addCodigo} onChange={e => setAddCodigo(e.target.value)} placeholder="Ej. VG"
+                        className="w-full bg-[#EFF2F9] rounded-xl px-4 py-2.5 text-[13px] text-[#1A1F2B] outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.12)] placeholder:text-[#B5BFC6]" />
+                    </div>
+                  )}
+                </div>
+                <button onClick={saveAdd} disabled={!addNombre}
+                  className="w-full py-3 rounded-2xl text-white text-[13px] disabled:opacity-40 shadow-[0_4px_14px_rgba(247,148,29,0.3)] hover:brightness-110 transition-all"
+                  style={{ background: '#F7941D' }}>Crear elemento</button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

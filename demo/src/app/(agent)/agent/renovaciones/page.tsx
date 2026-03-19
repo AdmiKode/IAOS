@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { RefreshCw, AlertTriangle, Clock, CheckCircle, X } from "lucide-react";
+import { ClientLink } from "@/components/ui";
 
 interface Renovacion {
   id: string;
@@ -105,7 +106,7 @@ export default function RenovacionesPage() {
               done && "opacity-50"
             )}>
               <div>
-                <p className="text-[#1A1F2B] text-sm font-semibold">{r.cliente}</p>
+                <ClientLink name={r.cliente} plain className="text-[#1A1F2B] text-sm font-semibold" />
                 <p className="text-[#9CA3AF] text-xs">{r.vencimiento}</p>
               </div>
               <p className="text-[#6B7280] text-sm font-mono">{r.poliza}</p>
@@ -158,14 +159,17 @@ export default function RenovacionesPage() {
             <div className="bg-[#EFF2F9] rounded-2xl p-4 mb-6 shadow-[inset_-3px_-3px_6px_#FAFBFF,inset_3px_3px_6px_rgba(22,27,29,0.10)]">
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Cliente", value: confirmModal.cliente },
+                  { label: "Cliente", value: confirmModal.cliente, isClient: true },
                   { label: "Póliza", value: confirmModal.poliza },
                   { label: "Prima", value: confirmModal.prima },
                   { label: "Vencimiento", value: confirmModal.vencimiento },
                 ].map(f => (
                   <div key={f.label}>
                     <p className="text-[#9CA3AF] text-xs">{f.label}</p>
-                    <p className="text-[#1A1F2B] text-sm font-semibold">{f.value}</p>
+                    {f.isClient
+                      ? <ClientLink name={f.value} plain className="text-[#1A1F2B] text-sm font-semibold" />
+                      : <p className="text-[#1A1F2B] text-sm font-semibold">{f.value}</p>
+                    }
                   </div>
                 ))}
               </div>

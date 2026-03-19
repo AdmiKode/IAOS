@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { MOCK_AGENDA } from "@/data/mock";
+import { MOCK_AGENDA, MOCK_CLIENTS } from "@/data/mock";
 import { cn } from "@/lib/utils";
-import { Plus, Phone, Users, ArrowRight, CheckSquare, Clock } from "lucide-react";
+import { Plus, Phone, Users, ArrowRight, CheckSquare, Clock, X, CheckCircle } from "lucide-react";
+import { ClientLink, NeuSelect } from "@/components/ui";
 
 const DAYS_OF_WEEK = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
 const MONTHS = [
@@ -47,6 +48,18 @@ export default function AgendaPage() {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState(today.getDate());
+  const [showModal, setShowModal] = useState(false);
+  const [eventSaved, setEventSaved] = useState(false);
+  const [newEvent, setNewEvent] = useState({ titulo: '', tipo: 'call', cliente: '', fecha: '', hora: '', notas: '' });
+
+  function openModal() {
+    setShowModal(true); setEventSaved(false);
+    setNewEvent({ titulo: '', tipo: 'call', cliente: '', fecha: `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`, hora: '09:00', notas: '' });
+  }
+  function handleSaveEvent() {
+    setEventSaved(true);
+    setTimeout(() => setShowModal(false), 1800);
+  }
 
   const calDays = getCalendarDays(viewYear, viewMonth);
 
@@ -67,6 +80,7 @@ export default function AgendaPage() {
   });
 
   return (
+    <>
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -75,7 +89,7 @@ export default function AgendaPage() {
             {selectedDay} de {MONTHS[viewMonth]} de {viewYear}
           </p>
         </div>
-        <button className="btn-primary flex items-center gap-2 text-sm px-4 py-2.5">
+        <button onClick={openModal} className="flex items-center gap-2 text-sm px-4 py-2.5 bg-[#F7941D] text-white rounded-xl shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
           <Plus size={16} />
           Nuevo evento
         </button>
@@ -189,7 +203,9 @@ export default function AgendaPage() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-[#1A1F2B] text-sm font-semibold truncate">{ev.title}</p>
-                                {ev.client && <p className="text-[#6B7280] text-xs mt-0.5">{ev.client}</p>}
+                                {ev.client && (
+                                  <ClientLink name={ev.client} plain className="text-[#6B7280] text-xs mt-0.5" />
+                                )}
                               </div>
                               <span className="text-xs font-semibold shrink-0" style={{ color: cfg.color }}>{ev.time}</span>
                             </div>
@@ -207,5 +223,87 @@ export default function AgendaPage() {
         </div>
       </div>
     </div>
+
+      {/* Modal nuevo evento */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(26,31,43,0.5)', backdropFilter: 'blur(10px)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-md shadow-[-16px_-16px_32px_#FAFBFF,16px_16px_32px_rgba(22,27,29,0.22)]">
+            <div className="flex items-center justify-between p-5 border-b border-[#D1D5DB]/20">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#F7941D]/10 flex items-center justify-center">
+                  <Clock size={15} className="text-[#F7941D]" />
+                </div>
+                <p className="text-[15px] text-[#1A1F2B]">Nuevo evento</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#7C1F31] transition-colors">
+                <X size={13} />
+              </button>
+            </div>
+            <div className="p-5 flex flex-col gap-3">
+              {eventSaved ? (
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <div className="w-14 h-14 rounded-full bg-[#69A481]/15 flex items-center justify-center">
+                    <CheckCircle size={28} className="text-[#69A481]" />
+                  </div>
+                  <p className="text-[15px] text-[#1A1F2B]">Evento guardado</p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Titulo</label>
+                    <input value={newEvent.titulo} onChange={e => setNewEvent(p => ({ ...p, titulo: e.target.value }))}
+                      placeholder="Nombre del evento..."
+                      className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Tipo</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
+                        <button key={key} onClick={() => setNewEvent(p => ({ ...p, tipo: key }))}
+                          className="px-3 py-1.5 rounded-xl text-[11px] transition-all capitalize"
+                          style={{ background: newEvent.tipo === key ? cfg.color : 'transparent', color: newEvent.tipo === key ? '#fff' : '#9CA3AF', border: `1px solid ${newEvent.tipo === key ? cfg.color : '#D1D5DB'}` }}>
+                          {cfg.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Cliente</label>
+                    <NeuSelect
+                      value={newEvent.cliente}
+                      onChange={v => setNewEvent(p => ({ ...p, cliente: v }))}
+                      placeholder="Sin cliente asignado"
+                      options={MOCK_CLIENTS.map(c => ({ value: c.name, label: c.name }))}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Fecha</label>
+                      <input type="date" value={newEvent.fecha} onChange={e => setNewEvent(p => ({ ...p, fecha: e.target.value }))}
+                        className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)]" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Hora</label>
+                      <input type="time" value={newEvent.hora} onChange={e => setNewEvent(p => ({ ...p, hora: e.target.value }))}
+                        className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)]" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Notas</label>
+                    <textarea rows={2} value={newEvent.notas} onChange={e => setNewEvent(p => ({ ...p, notas: e.target.value }))}
+                      placeholder="Detalles adicionales..."
+                      className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none resize-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                  </div>
+                  <button onClick={handleSaveEvent} disabled={!newEvent.titulo}
+                    className="w-full py-3.5 rounded-xl bg-[#F7941D] text-white text-[13px] font-medium hover:bg-[#E8820A] transition-colors shadow-[0_4px_12px_rgba(247,148,29,0.3)] disabled:opacity-50">
+                    Guardar evento
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

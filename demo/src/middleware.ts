@@ -15,14 +15,12 @@ export function middleware(req: NextRequest) {
   // En middleware leemos la cookie para validar rol.
   const cookie = req.cookies.get('iaos-user')?.value
 
-  if (!cookie) {
-    const loginUrl = new URL('/login', req.url)
-    loginUrl.searchParams.set('next', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
+  // Si no hay cookie, dejamos pasar — el AuthProvider en cliente maneja el redirect.
+  // Esto evita que la navegación SPA pierda sesión entre rutas.
+  if (!cookie) return NextResponse.next()
 
   try {
-    const user = JSON.parse(cookie)
+    const user = JSON.parse(decodeURIComponent(cookie))
     if (needsAgent && user.role === 'client') {
       return NextResponse.redirect(new URL('/client/inicio', req.url))
     }
@@ -30,8 +28,8 @@ export function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/agent/dashboard', req.url))
     }
   } catch {
-    const loginUrl = new URL('/login', req.url)
-    return NextResponse.redirect(loginUrl)
+    // Cookie malformada — dejamos pasar, el cliente maneja el estado
+    return NextResponse.next()
   }
 
   return NextResponse.next()
