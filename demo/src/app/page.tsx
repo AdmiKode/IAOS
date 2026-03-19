@@ -90,16 +90,9 @@ export default function IntroPage() {
           className="object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
           priority
         />
-        <div className="hidden md:flex items-center gap-7">
-          {['HOME', 'ABOUT', 'PRODUCT', 'SERVICE', 'CONTACT'].map(item => (
-            <span key={item} className="text-white/80 text-xs font-medium tracking-widest uppercase cursor-pointer hover:text-white transition-colors">
-              {item}
-            </span>
-          ))}
-        </div>
         <Link
           href="/login"
-          className="px-5 py-2 rounded-full bg-white/15 text-white text-xs font-semibold tracking-widest uppercase border border-white/30 backdrop-blur-sm hover:bg-white/25 transition-all duration-200"
+          className="px-5 py-2 rounded-full bg-white/15 text-[#1A1F2B] text-xs font-semibold tracking-widest uppercase border border-white/40 backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
         >
           Acceder
         </Link>
@@ -125,15 +118,15 @@ export default function IntroPage() {
 
           {/* Headline */}
           <div>
-            <p className="text-white/60 text-xs tracking-widest uppercase mb-2">3D GLASSMORPHISM</p>
-            <h1 className="text-white text-4xl md:text-5xl font-bold leading-tight tracking-tight">
+            <p className="text-[#4B5563] text-xs tracking-widest uppercase mb-2">3D GLASSMORPHISM</p>
+            <h1 className="text-[#1A1F2B] text-4xl md:text-5xl font-bold leading-tight tracking-tight">
               Insurance<br />
-              <span className="text-white/90">Agent OS</span>
+              <span className="text-[#2D3340]">Agent OS</span>
             </h1>
           </div>
 
           {/* Descripción */}
-          <p className="text-white/65 text-sm leading-relaxed max-w-sm">
+          <p className="text-[#374151] text-sm leading-relaxed max-w-sm">
             El sistema operativo del agente de seguros moderno. Gestiona cartera, cotiza, automatiza renovaciones y atiende clientes con IA — desde un solo lugar.
           </p>
 
@@ -141,7 +134,7 @@ export default function IntroPage() {
           <div className="flex flex-wrap gap-3 mt-2">
             <Link
               href="/landing"
-              className="px-7 py-3 rounded-full bg-white/20 text-white text-xs font-bold tracking-widest uppercase border border-white/35 backdrop-blur-sm hover:bg-white/30 transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.15)]"
+              className="px-7 py-3 rounded-full bg-white/20 text-[#1A1F2B] text-xs font-bold tracking-widest uppercase border border-white/40 backdrop-blur-sm hover:bg-white/35 transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.15)]"
             >
               Conocer más
             </Link>
@@ -163,7 +156,7 @@ export default function IntroPage() {
 
       {/* ── Footer mínimo ── */}
       <div className="relative z-10 text-center pb-6">
-        <p className="text-white/35 text-[10px] tracking-widest uppercase">
+        <p className="text-[#4B5563] text-[10px] tracking-widest uppercase">
           Insurance Agent OS · Demo 2026
         </p>
       </div>
