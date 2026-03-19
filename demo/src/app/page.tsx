@@ -82,14 +82,11 @@ export default function IntroPage() {
 
       {/* ── Navbar ── */}
       <nav className="relative z-20 flex items-center justify-between px-8 pt-7 pb-2 max-w-6xl mx-auto w-full">
-        <Image
-          src="/logo.png"
-          alt="Insurance Agent OS"
-          width={160}
-          height={48}
-          className="object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
-          priority
-        />
+        {/* Título cristal donde antes estaba el logo */}
+        <div className="flex flex-col leading-tight">
+          <span className="text-white/50 text-lg font-bold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.2)]">Insurance</span>
+          <span className="text-white/50 text-lg font-bold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.2)]">Agent OS</span>
+        </div>
         <Link
           href="/login"
           className="px-5 py-2 rounded-full bg-white/15 text-[#1A1F2B] text-xs font-semibold tracking-widest uppercase border border-white/40 backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
@@ -101,7 +98,7 @@ export default function IntroPage() {
       {/* ── Glass panel central ── */}
       <div className="relative z-10 flex-1 flex items-center justify-center px-6 py-12">
         <div
-          className="relative w-full max-w-lg rounded-2xl px-10 py-12 flex flex-col items-start gap-6"
+          className="relative w-full max-w-lg rounded-2xl px-10 py-12 flex flex-col items-center gap-6"
           style={{
             background: 'rgba(255,255,255,0.08)',
             backdropFilter: 'blur(18px)',
@@ -116,22 +113,23 @@ export default function IntroPage() {
             <span className="text-[#F7941D] text-[10px] font-bold tracking-[0.25em] uppercase">Powered by XORIA AI</span>
           </div>
 
-          {/* Headline */}
-          <div>
-            <p className="text-[#4B5563] text-xs tracking-widest uppercase mb-2">3D GLASSMORPHISM</p>
-            <h1 className="text-[#1A1F2B] text-4xl md:text-5xl font-bold leading-tight tracking-tight">
-              Insurance<br />
-              <span className="text-[#2D3340]">Agent OS</span>
-            </h1>
-          </div>
+          {/* Logo grande dentro de la tarjeta */}
+          <Image
+            src="/logo.png"
+            alt="Insurance Agent OS"
+            width={220}
+            height={72}
+            className="object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.18)]"
+            priority
+          />
 
           {/* Descripción */}
-          <p className="text-[#374151] text-sm leading-relaxed max-w-sm">
+          <p className="text-[#374151] text-sm leading-relaxed text-center max-w-sm">
             El sistema operativo del agente de seguros moderno. Gestiona cartera, cotiza, automatiza renovaciones y atiende clientes con IA — desde un solo lugar.
           </p>
 
-          {/* CTA */}
-          <div className="flex flex-wrap gap-3 mt-2">
+          {/* CTA centrados */}
+          <div className="flex flex-wrap justify-center gap-3 mt-2">
             <Link
               href="/landing"
               className="px-7 py-3 rounded-full bg-white/20 text-[#1A1F2B] text-xs font-bold tracking-widest uppercase border border-white/40 backdrop-blur-sm hover:bg-white/35 transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.15)]"
@@ -154,10 +152,13 @@ export default function IntroPage() {
         </div>
       </div>
 
-      {/* ── Footer mínimo ── */}
-      <div className="relative z-10 text-center pb-6">
-        <p className="text-[#4B5563] text-[10px] tracking-widest uppercase">
-          Insurance Agent OS · Demo 2026
+      {/* ── Footer ── */}
+      <div className="relative z-10 text-center pb-6 flex flex-col items-center gap-1">
+        <p className="text-[#4B5563] text-[10px] tracking-widest uppercase font-semibold">
+          Live Kode® · Insurance Agent OS
+        </p>
+        <p className="text-[#4B5563]/70 text-[9px] tracking-wider uppercase">
+          Producto en proceso de patente · Todos los derechos reservados 2026
         </p>
       </div>
     </div>
