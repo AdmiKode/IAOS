@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Users, FileText, MessageSquare, Calendar,
   BarChart3, Settings, LogOut, Bot, Phone, Layers, ChevronRight,
-  Bell, Search, FilePlus, RefreshCw, Menu, X
+  Bell, Search, FilePlus, RefreshCw, Menu, X, AlertTriangle,
+  CreditCard, BookOpen, Shield, Tag, Brain
 } from 'lucide-react'
 import { NotificationsPanel } from '@/components/agent/NotificationsPanel'
 
@@ -20,10 +21,17 @@ const NAV_ITEMS = [
   { icon: FilePlus, label: 'Emisión', href: '/agent/emision' },
   { icon: RefreshCw, label: 'Renovaciones', href: '/agent/renovaciones' },
   { icon: MessageSquare, label: 'Mensajes', href: '/agent/mensajes' },
+  { icon: AlertTriangle, label: 'Tickets', href: '/agent/tickets' },
+  { icon: Shield, label: 'Siniestros', href: '/agent/siniestros' },
+  { icon: CreditCard, label: 'Cobranza', href: '/agent/cobranza' },
+  { icon: BookOpen, label: 'Knowledge', href: '/agent/knowledge' },
   { icon: Calendar, label: 'Agenda', href: '/agent/agenda' },
   { icon: BarChart3, label: 'Reportes', href: '/agent/reportes' },
   { icon: Bot, label: 'XORIA', href: '/agent/xoria' },
   { icon: Phone, label: 'Voz IA', href: '/agent/voz' },
+  { icon: Tag, label: 'Catálogos', href: '/agent/catalogos' },
+  { icon: Shield, label: 'Compliance', href: '/agent/compliance' },
+  { icon: Brain, label: 'IA Control', href: '/agent/ia-control' },
 ]
 
 const BOTTOM_ITEMS = [

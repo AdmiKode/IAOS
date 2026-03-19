@@ -64,7 +64,7 @@ export interface Ticket {
   clientName: string
   subject: string
   status: 'abierto' | 'en_proceso' | 'cerrado'
-  priority: 'alta' | 'media' | 'baja'
+  priority: 'urgente' | 'alta' | 'media' | 'baja'
   createdAt: string
 }
 
