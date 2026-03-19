@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui'
 import { FileText, Plus, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
+import Link from 'next/link'
 
 const STATUS_MAP = {
   activa:    { label: 'Activa',    variant: 'success' as const },
@@ -45,7 +46,7 @@ export default function PolizasPage() {
         {filtered.map(policy => {
           const status = STATUS_MAP[policy.status] || { label: policy.status, variant: 'default' as const }
           return (
-            <div key={policy.id}
+            <Link key={policy.id} href={`/agent/polizas/${policy.id}`}
               className="bg-[#EFF2F9] rounded-2xl p-5 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.14)] flex items-center gap-4 cursor-pointer hover:scale-[1.01] transition-transform duration-150">
               <div className="w-11 h-11 rounded-xl bg-[#F7941D]/12 flex items-center justify-center shrink-0">
                 <FileText size={18} className="text-[#F7941D]" />
@@ -62,7 +63,7 @@ export default function PolizasPage() {
                 <p className="text-[14px] text-[#F7941D]">{policy.premium}</p>
                 <p className="text-[11px] text-[#9CA3AF] mt-0.5">Prima</p>
               </div>
-            </div>
+            </Link>
           )
         })}
       </div>

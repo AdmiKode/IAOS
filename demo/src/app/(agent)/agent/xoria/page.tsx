@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, Mic, MicOff, Sparkles, User } from 'lucide-react'
+import { Send, Bot, Mic, MicOff, Sparkles, User, Plus, Clock, Trash2, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import { MOCK_KPIS, MOCK_LEADS } from '@/data/mock'
@@ -8,7 +8,14 @@ import { MOCK_KPIS, MOCK_LEADS } from '@/data/mock'
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  timestamp: Date
+  timestamp: string
+}
+
+interface Conversation {
+  id: string
+  title: string
+  messages: Message[]
+  date: string
 }
 
 const QUICK_ACTIONS = [
@@ -18,24 +25,82 @@ const QUICK_ACTIONS = [
   { label: 'Métricas clave', prompt: '¿Cuáles son mis métricas clave este mes y cómo las mejoro?' },
 ]
 
+const STORAGE_KEY = 'xoria-history'
+const MAX_HISTORY = 20
+
+function newConversationId() {
+  return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+}
+
+function titleFromMessages(messages: Message[]): string {
+  const first = messages.find(m => m.role === 'user')
+  if (!first) return 'Nueva conversación'
+  return first.content.length > 40 ? first.content.slice(0, 40) + '…' : first.content
+}
+
+function loadHistory(): Conversation[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveHistory(history: Conversation[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)))
+  } catch {}
+}
+
 export default function XoriaPage() {
   const { user } = useAuth()
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: `Hola ${user?.name?.split(' ')[0] || 'agente'}, soy XORIA, tu copiloto de inteligencia artificial. Estoy conectada a tu workspace y lista para ayudarte. ¿En qué trabajamos hoy?`,
-      timestamp: new Date(),
-    }
-  ])
+
+  const buildWelcome = (): Message => ({
+    role: 'assistant',
+    content: `Hola ${user?.name?.split(' ')[0] || 'agente'}, soy XORIA, tu copiloto de inteligencia artificial. Estoy conectada a tu workspace y lista para ayudarte. ¿En qué trabajamos hoy?`,
+    timestamp: new Date().toISOString(),
+  })
+
+  const [history, setHistory] = useState<Conversation[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Message[]>([buildWelcome()])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Load history on mount
+  useEffect(() => {
+    setHistory(loadHistory())
+  }, [])
+
+  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Persist current conversation on each message change (only if user sent at least 1 message)
+  useEffect(() => {
+    const userMsgs = messages.filter(m => m.role === 'user')
+    if (userMsgs.length === 0) return
+
+    setHistory(prev => {
+      const id = activeId || newConversationId()
+      if (!activeId) setActiveId(id)
+      const conv: Conversation = {
+        id,
+        title: titleFromMessages(messages),
+        messages,
+        date: new Date().toISOString(),
+      }
+      const filtered = prev.filter(c => c.id !== id)
+      const next = [conv, ...filtered]
+      saveHistory(next)
+      return next
+    })
+  }, [messages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const context = {
     agent: user?.name,
@@ -50,7 +115,7 @@ export default function XoriaPage() {
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return
     setInput('')
-    const userMsg: Message = { role: 'user', content: text, timestamp: new Date() }
+    const userMsg: Message = { role: 'user', content: text, timestamp: new Date().toISOString() }
     setMessages(prev => [...prev, userMsg])
     setLoading(true)
 
@@ -65,17 +130,40 @@ export default function XoriaPage() {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: data.reply || 'Lo siento, no pude procesar esa solicitud.',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       }])
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Error de conexión. Verifica tu conexión e intenta de nuevo.',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       }])
     } finally {
       setLoading(false)
     }
+  }
+
+  function startNewConversation() {
+    setActiveId(null)
+    setMessages([buildWelcome()])
+    setInput('')
+    inputRef.current?.focus()
+  }
+
+  function loadConversation(conv: Conversation) {
+    setActiveId(conv.id)
+    setMessages(conv.messages)
+    setInput('')
+  }
+
+  function deleteConversation(id: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    setHistory(prev => {
+      const next = prev.filter(c => c.id !== id)
+      saveHistory(next)
+      return next
+    })
+    if (activeId === id) startNewConversation()
   }
 
   function handleVoice() {
@@ -98,22 +186,44 @@ export default function XoriaPage() {
     recognition.onend = () => setListening(false)
   }
 
+  function formatDate(iso: string) {
+    const d = new Date(iso)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    if (d.toDateString() === today.toDateString()) return 'Hoy'
+    if (d.toDateString() === yesterday.toDateString()) return 'Ayer'
+    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+  }
+
   return (
     <div className="flex h-full gap-4" style={{ maxHeight: 'calc(100vh - 120px)' }}>
-      {/* Sidebar historial */}
-      <div className="hidden xl:flex flex-col w-[220px] shrink-0 gap-3">
+
+      {/* Sidebar */}
+      <div className="hidden xl:flex flex-col w-[230px] shrink-0 gap-3 overflow-hidden">
+
+        {/* New conversation button */}
+        <button
+          onClick={startNewConversation}
+          className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#F7941D] text-white text-[13px] shadow-[0_4px_12px_rgba(247,148,29,0.35)] hover:bg-[#E8820A] transition-all duration-150 active:scale-95"
+        >
+          <Plus size={15} />
+          Nueva conversación
+        </button>
+
+        {/* Quick actions */}
         <div className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.16)]">
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={14} className="text-[#F7941D]" />
-            <p className="text-[13px] text-[#1A1F2B] tracking-wide">Acciones rápidas</p>
+            <Sparkles size={13} className="text-[#F7941D]" />
+            <p className="text-[12px] text-[#1A1F2B] tracking-wide">Acciones rápidas</p>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {QUICK_ACTIONS.map(action => (
               <button
                 key={action.label}
                 onClick={() => sendMessage(action.prompt)}
                 disabled={loading}
-                className="text-left text-[12px] text-[#6B7280] px-3 py-2 rounded-xl bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#F7941D] hover:shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.16)] transition-all duration-150 disabled:opacity-40"
+                className="text-left text-[11px] text-[#6B7280] px-3 py-2 rounded-xl bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#F7941D] hover:shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.16)] transition-all duration-150 disabled:opacity-40"
               >
                 {action.label}
               </button>
@@ -121,13 +231,60 @@ export default function XoriaPage() {
           </div>
         </div>
 
-        <div className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.16)] flex-1">
-          <p className="text-[11px] text-[#9CA3AF] tracking-widest uppercase mb-3">Contexto activo</p>
-          <div className="flex flex-col gap-2">
+        {/* History */}
+        <div className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.16)] flex-1 overflow-hidden flex flex-col">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock size={13} className="text-[#9CA3AF]" />
+            <p className="text-[11px] text-[#9CA3AF] tracking-widest uppercase">Historial</p>
+          </div>
+
+          {history.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+              <MessageSquare size={22} className="text-[#D1D5DB]" />
+              <p className="text-[11px] text-[#B5BFC6] leading-relaxed">
+                Tus conversaciones aparecerán aquí
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto -mr-1 pr-1 flex flex-col gap-1">
+              {history.map(conv => (
+                <button
+                  key={conv.id}
+                  onClick={() => loadConversation(conv)}
+                  className={cn(
+                    'group w-full text-left px-3 py-2.5 rounded-xl transition-all duration-150 flex items-start gap-2',
+                    activeId === conv.id
+                      ? 'bg-[#F7941D]/10 shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)]'
+                      : 'hover:bg-[#F7941D]/5'
+                  )}
+                >
+                  <MessageSquare size={11} className={cn('mt-0.5 shrink-0', activeId === conv.id ? 'text-[#F7941D]' : 'text-[#9CA3AF]')} />
+                  <div className="flex-1 min-w-0">
+                    <p className={cn('text-[11px] leading-snug truncate', activeId === conv.id ? 'text-[#F7941D]' : 'text-[#6B7280]')}>
+                      {conv.title}
+                    </p>
+                    <p className="text-[10px] text-[#9CA3AF] mt-0.5">{formatDate(conv.date)}</p>
+                  </div>
+                  <button
+                    onClick={(e) => deleteConversation(conv.id, e)}
+                    className="opacity-0 group-hover:opacity-100 text-[#B5BFC6] hover:text-[#7C1F31] transition-all"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Context */}
+        <div className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.16)]">
+          <p className="text-[10px] text-[#9CA3AF] tracking-widest uppercase mb-2.5">Contexto activo</p>
+          <div className="flex flex-col gap-1.5">
             {MOCK_KPIS.slice(0, 4).map(kpi => (
               <div key={kpi.id} className="flex items-center justify-between">
-                <span className="text-[11px] text-[#6B7280] truncate">{kpi.label}</span>
-                <span className="text-[11px] text-[#F7941D] font-medium">{kpi.value}</span>
+                <span className="text-[10px] text-[#6B7280] truncate">{kpi.label}</span>
+                <span className="text-[10px] text-[#F7941D] font-medium">{kpi.value}</span>
               </div>
             ))}
           </div>
@@ -141,20 +298,27 @@ export default function XoriaPage() {
           <div className="w-9 h-9 rounded-xl bg-[#F7941D]/15 flex items-center justify-center">
             <Bot size={18} className="text-[#F7941D]" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-[14px] text-[#1A1F2B] tracking-wide">XORIA</p>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-[#69A481] animate-pulse" />
               <p className="text-[11px] text-[#69A481]">Conectada · GPT-4o</p>
             </div>
           </div>
+          {/* New conversation (mobile) */}
+          <button
+            onClick={startNewConversation}
+            className="xl:hidden flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F7941D]/10 text-[#F7941D] text-[12px] hover:bg-[#F7941D]/20 transition-colors"
+          >
+            <Plus size={13} />
+            Nueva
+          </button>
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
           {messages.map((msg, i) => (
             <div key={i} className={cn('flex gap-3 max-w-[85%]', msg.role === 'user' ? 'self-end flex-row-reverse' : 'self-start')}>
-              {/* Avatar */}
               <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center shrink-0',
                 msg.role === 'assistant'
                   ? 'bg-[#F7941D]/15'
@@ -164,7 +328,6 @@ export default function XoriaPage() {
                   : <User size={14} className="text-[#6B7280]" />}
               </div>
 
-              {/* Bubble */}
               <div className={cn(
                 'rounded-2xl px-4 py-3 text-[13px] leading-relaxed',
                 msg.role === 'assistant'
@@ -173,7 +336,7 @@ export default function XoriaPage() {
               )}>
                 {msg.content}
                 <p className="text-[10px] text-[#9CA3AF] mt-1.5">
-                  {msg.timestamp.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(msg.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
             </div>
@@ -206,7 +369,7 @@ export default function XoriaPage() {
           ))}
         </div>
 
-        {/* Input area */}
+        {/* Input */}
         <div className="px-5 pb-5 pt-3">
           <div className="flex items-center gap-3 bg-[#EFF2F9] rounded-2xl shadow-[inset_-4px_-4px_10px_#FAFBFF,inset_4px_4px_10px_rgba(22,27,29,0.15)] px-4">
             <input

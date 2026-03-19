@@ -28,13 +28,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const foundUser = DEMO_USERS.find(u => u.email === email)!
     setUser(foundUser)
     localStorage.setItem('iaos_demo_user', JSON.stringify(foundUser))
+    // Cookie para middleware (SameSite=Lax, no HttpOnly para demo)
+    document.cookie = `iaos-user=${encodeURIComponent(JSON.stringify(foundUser))};path=/;max-age=86400;SameSite=Lax`
     return { success: true, redirect: cred.redirect }
   }
 
   const logout = () => {
     setUser(null)
     localStorage.removeItem('iaos_demo_user')
+    document.cookie = 'iaos-user=;path=/;max-age=0'
   }
+
+  // Restaurar cookie si hay sesión en localStorage
+  useEffect(() => {
+    if (user) {
+      document.cookie = `iaos-user=${encodeURIComponent(JSON.stringify(user))};path=/;max-age=86400;SameSite=Lax`
+    }
+  }, [user])
 
   return <AuthContext.Provider value={{ user, login, logout, isLoading }}>{children}</AuthContext.Provider>
 }

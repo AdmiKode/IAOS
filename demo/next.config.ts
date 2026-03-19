@@ -20,7 +20,9 @@ const withPWA = require("next-pwa")({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  turbopack: {},
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "api.al-eon.com" }],
   },

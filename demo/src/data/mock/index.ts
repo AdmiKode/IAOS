@@ -104,10 +104,10 @@ export const MOCK_AGENDA: AgendaItem[] = [
 
 // ─── GRÁFICO PRIMAS MENSUALES ────────────────────────────────────────────────
 export const MOCK_CHART_DATA: ChartDataPoint[] = [
-  { month: 'Oct', primas: 142000 },
-  { month: 'Nov', primas: 158000 },
-  { month: 'Dic', primas: 134000 },
-  { month: 'Ene', primas: 171000 },
-  { month: 'Feb', primas: 165000 },
-  { month: 'Mar', primas: 184320 },
+  { month: 'Oct', primas: 142000, leads: 12 },
+  { month: 'Nov', primas: 158000, leads: 15 },
+  { month: 'Dic', primas: 134000, leads: 9 },
+  { month: 'Ene', primas: 171000, leads: 18 },
+  { month: 'Feb', primas: 165000, leads: 14 },
+  { month: 'Mar', primas: 184320, leads: 22 },
 ]

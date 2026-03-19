@@ -11,7 +11,7 @@ const CLIENT_NAV = [
   { icon: Home, label: 'Inicio', href: '/client/inicio' },
   { icon: FileText, label: 'Pólizas', href: '/client/polizas' },
   { icon: CreditCard, label: 'Pagos', href: '/client/pagos' },
-  { icon: Shield, label: 'Siniestros', href: '/client/siniestros' },
+  { icon: FolderOpen, label: 'Docs', href: '/client/documentos' },
   { icon: MessageSquare, label: 'Mensajes', href: '/client/mensajes' },
 ]
 
