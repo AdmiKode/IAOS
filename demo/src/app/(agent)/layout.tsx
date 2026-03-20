@@ -14,7 +14,6 @@ import {
 import { NotificationsPanel } from '@/components/agent/NotificationsPanel'
 
 const NAV_ITEMS = [
-  { icon: Zap, label: 'Nueva Venta IA', href: '/agent/nueva-venta', highlight: true },
   { icon: LayoutDashboard, label: 'Dashboard', href: '/agent/dashboard' },
   { icon: Users, label: 'Clientes', href: '/agent/clientes' },
   { icon: Users2, label: 'Equipo', href: '/agent/equipo', roles: ['admin', 'broker', 'promotoria'] },

@@ -266,6 +266,16 @@ function OriginacionContent() {
     id_oficial: 'pendiente', comprobante_dom: 'pendiente', rfc_doc: 'pendiente',
     solicitud: 'pendiente', consentimiento: 'pendiente', firma_digital: 'pendiente',
   })
+  // Firma digital
+  const [firmaModal, setFirmaModal] = useState(false)
+  const [firmaStep, setFirmaStep] = useState<'prep' | 'firma' | 'done'>('prep')
+  const [polizaGenerada, setPolizaGenerada] = useState<string | null>(null)
+  const [firmaConfirmada, setFirmaConfirmada] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const drawingRef = useRef(false)
+  const lastPtRef = useRef<{ x: number; y: number } | null>(null)
   const chatRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const pendingRespuesta = useRef('')
@@ -396,6 +406,105 @@ function OriginacionContent() {
   }
 
   const puedeIrCotizacion = porcentaje >= 60
+
+  // ── Firma Digital ─────────────────────────────────────────────────────────
+  async function abrirFirma() {
+    setFirmaStep('prep')
+    setFirmaConfirmada(false)
+    setPolizaGenerada(null)
+    setFirmaModal(true)
+    // pequeño delay para que el modal monte el video element
+    setTimeout(startCamera, 400)
+  }
+
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      }
+    } catch { /* sin cámara: solo muestra placeholder */ }
+  }
+
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+  }
+
+  function closeFirma() {
+    stopCamera()
+    setFirmaModal(false)
+    setFirmaStep('prep')
+  }
+
+  function clearCanvas() {
+    const c = canvasRef.current
+    if (!c) return
+    const ctx = c.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, c.width, c.height)
+    setFirmaConfirmada(false)
+  }
+
+  function getPos(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    const c = canvasRef.current!
+    const rect = c.getBoundingClientRect()
+    const scaleX = c.width / rect.width
+    const scaleY = c.height / rect.height
+    if ('touches' in e) {
+      const t = e.touches[0]
+      return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY }
+    }
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }
+  }
+
+  function canvasStart(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    e.preventDefault()
+    drawingRef.current = true
+    lastPtRef.current = getPos(e)
+  }
+
+  function canvasMove(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    e.preventDefault()
+    if (!drawingRef.current || !canvasRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+    const pt = getPos(e)
+    const last = lastPtRef.current ?? pt
+    ctx.beginPath()
+    ctx.moveTo(last.x, last.y)
+    ctx.lineTo(pt.x, pt.y)
+    ctx.strokeStyle = '#1A1F2B'
+    ctx.lineWidth = 2.5
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.stroke()
+    lastPtRef.current = pt
+  }
+
+  function canvasEnd(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    e.preventDefault()
+    drawingRef.current = false
+    lastPtRef.current = null
+    // Check if there's something drawn
+    const c = canvasRef.current
+    if (!c) return
+    const ctx = c.getContext('2d')
+    if (!ctx) return
+    const data = ctx.getImageData(0, 0, c.width, c.height).data
+    const hasDrawing = Array.from(data).some((v, i) => i % 4 === 3 && v > 0)
+    if (hasDrawing) setFirmaConfirmada(true)
+  }
+
+  function confirmarFirma() {
+    const num = `GNP-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`
+    setPolizaGenerada(num)
+    setFirmaStep('done')
+    stopCamera()
+    setDocStatus(prev => ({ ...prev, firma_digital: 'completo', solicitud: 'completo' }))
+  }
 
   return (
     <div className="flex flex-col gap-3" style={{ height: 'calc(100vh - 90px)' }}>
@@ -735,8 +844,203 @@ function OriginacionContent() {
               <ZapIcon size={13} /> Ver cotización
             </button>
           )}
+
+          {terminado && (
+            <button onClick={abrirFirma}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white text-[12px] font-semibold hover:scale-[1.02] transition-all active:scale-95"
+              style={{ background: 'linear-gradient(135deg,#69A481,#4d8060)', boxShadow: '0 6px 20px rgba(105,164,129,0.45)' }}>
+              <Shield size={13} /> Generar Póliza · Firma Digital
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ── MODAL FIRMA DIGITAL ────────────────────────────────────────────── */}
+      {firmaModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+          <div className="w-full max-w-3xl bg-[#EFF2F9] rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.35)] overflow-hidden">
+
+            {/* Header del modal */}
+            <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between"
+              style={{ background: 'linear-gradient(90deg,#1A1F2B,#2D3548)' }}>
+              <div className="flex items-center gap-3">
+                <Shield size={16} className="text-[#69A481]" />
+                <div>
+                  <p className="text-white text-[14px] font-bold">Firma Digital Biométrica</p>
+                  <p className="text-white/50 text-[10px] tracking-wider">
+                    {firmaStep === 'prep' ? 'VERIFICACIÓN · PASO 1 DE 2'
+                      : firmaStep === 'firma' ? 'CAPTURA DE FIRMA · PASO 2 DE 2'
+                      : '✅ PÓLIZA GENERADA'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={closeFirma}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-[18px] font-light">
+                ×
+              </button>
+            </div>
+
+            {/* Pasos indicadores */}
+            {firmaStep !== 'done' && (
+              <div className="flex items-center gap-0 px-6 py-3 bg-white/30 border-b border-[#E5E7EB]">
+                {['prep', 'firma'].map((step, i) => (
+                  <div key={step} className="flex items-center gap-0 flex-1">
+                    <div className={cn('flex items-center gap-1.5',
+                      firmaStep === step ? 'text-[#F7941D]' : i < ['prep','firma'].indexOf(firmaStep) ? 'text-[#69A481]' : 'text-[#9CA3AF]')}>
+                      <div className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold',
+                        firmaStep === step ? 'bg-[#F7941D] text-white' : i < ['prep','firma'].indexOf(firmaStep) ? 'bg-[#69A481] text-white' : 'bg-[#E5E7EB] text-[#9CA3AF]')}>
+                        {i < ['prep','firma'].indexOf(firmaStep) ? '✓' : i + 1}
+                      </div>
+                      <span className="text-[10px] font-semibold">{i === 0 ? 'Preparar cámara' : 'Firmar documento'}</span>
+                    </div>
+                    {i < 1 && <div className="flex-1 h-px bg-[#E5E7EB] mx-3" />}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* PASO 1: Preparar */}
+            {firmaStep === 'prep' && (
+              <div className="p-6 flex flex-col items-center gap-5">
+                <div className="w-full flex flex-col items-center gap-3">
+                  <div className="w-full max-w-sm aspect-video rounded-2xl overflow-hidden bg-[#1A1F2B] relative shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                    <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-center">
+                      <div className="bg-[#69A481]/20 border border-[#69A481]/40 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#69A481] animate-pulse" />
+                        <span className="text-[10px] text-white font-semibold">Cámara activa — Verificación biométrica</span>
+                      </div>
+                    </div>
+                    {/* Overlay guía de cara */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-28 h-36 rounded-full border-2 border-dashed border-[#F7941D]/40" />
+                    </div>
+                  </div>
+                  <div className="bg-[#F7941D]/08 border border-[#F7941D]/20 rounded-xl px-4 py-3 max-w-sm w-full">
+                    <p className="text-[11px] text-[#6B7280] leading-relaxed text-center">
+                      Asegúrate de que el cliente esté frente a la cámara.<br />
+                      El rostro debe ser claramente visible durante todo el proceso de firma.<br />
+                      <span className="text-[#F7941D] font-semibold">Esta sesión queda registrada como verificación biométrica.</span>
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setFirmaStep('firma')}
+                  className="px-10 py-3.5 rounded-2xl text-white text-[13px] font-semibold hover:opacity-90 transition-all active:scale-95"
+                  style={{ background: 'linear-gradient(135deg,#F7941D,#e08019)', boxShadow: '0 6px 20px rgba(247,148,29,0.4)' }}>
+                  Cliente listo — Continuar a firma
+                </button>
+              </div>
+            )}
+
+            {/* PASO 2: Firmar */}
+            {firmaStep === 'firma' && (
+              <div className="p-6 flex gap-5">
+                {/* Cámara */}
+                <div className="flex flex-col gap-2 shrink-0" style={{ width: '42%' }}>
+                  <div className="rounded-2xl overflow-hidden bg-[#1A1F2B] relative shadow-[0_6px_20px_rgba(0,0,0,0.25)]" style={{ aspectRatio: '4/3' }}>
+                    <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                    <div className="absolute top-2 left-2 bg-[#7C1F31]/80 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                      <span className="text-[9px] text-white font-bold">REC</span>
+                    </div>
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <div className="bg-black/50 backdrop-blur-sm rounded-lg px-2 py-1.5 text-center">
+                        <p className="text-[9px] text-white/80">Verificación biométrica activa</p>
+                        <p className="text-[8px] text-white/50">El cliente firma frente a cámara</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-[#1A1F2B] rounded-xl px-3 py-2">
+                    <p className="text-[9px] text-white/60 text-center leading-relaxed">
+                      Sesión de firma registrada con verificación facial biométrica conforme a la NOM-151-SCFI-2016
+                    </p>
+                  </div>
+                </div>
+
+                {/* Pad de firma */}
+                <div className="flex-1 flex flex-col gap-3">
+                  <div>
+                    <p className="text-[13px] text-[#1A1F2B] font-bold mb-0.5">Firma del asegurado</p>
+                    <p className="text-[11px] text-[#9CA3AF]">
+                      {valores.nombre || 'Cliente'} {valores.apellido_paterno || ''} — GMM {tipoLabel}
+                    </p>
+                  </div>
+
+                  {/* Canvas */}
+                  <div className="relative rounded-2xl overflow-hidden border-2 border-dashed border-[#D1D5DB] bg-white/80 flex-1 min-h-[180px]">
+                    <canvas ref={canvasRef} width={500} height={220}
+                      className="w-full h-full cursor-crosshair touch-none"
+                      onMouseDown={canvasStart} onMouseMove={canvasMove} onMouseUp={canvasEnd} onMouseLeave={canvasEnd}
+                      onTouchStart={canvasStart} onTouchMove={canvasMove} onTouchEnd={canvasEnd} />
+                    {!firmaConfirmada && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <p className="text-[11px] text-[#D1D5DB] select-none">Firma aquí</p>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 h-px bg-[#E5E7EB] mx-4" />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button onClick={clearCanvas}
+                      className="flex-1 py-2.5 rounded-xl text-[11px] text-[#6B7280] font-semibold bg-[#EFF2F9] shadow-[-3px_-3px_6px_#FAFBFF,3px_3px_6px_rgba(22,27,29,0.12)] hover:text-[#1A1F2B] transition-colors">
+                      Limpiar
+                    </button>
+                    <button onClick={confirmarFirma} disabled={!firmaConfirmada}
+                      className="flex-[2] py-2.5 rounded-xl text-[12px] text-white font-semibold transition-all active:scale-95 disabled:opacity-40"
+                      style={{ background: 'linear-gradient(135deg,#69A481,#4d8060)', boxShadow: firmaConfirmada ? '0 4px 16px rgba(105,164,129,0.4)' : 'none' }}>
+                      <div className="flex items-center justify-center gap-2">
+                        <Shield size={13} /> Confirmar y generar póliza
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* PASO 3: Confirmado */}
+            {firmaStep === 'done' && (
+              <div className="p-8 flex flex-col items-center gap-5 text-center">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center"
+                  style={{ background: 'linear-gradient(135deg,#69A481,#4d8060)', boxShadow: '0 8px 30px rgba(105,164,129,0.4)' }}>
+                  <CheckCircle2 size={36} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-[22px] text-[#1A1F2B] font-bold mb-1">¡Póliza Generada!</h3>
+                  <p className="text-[13px] text-[#6B7280] mb-3">La firma biométrica fue capturada y validada correctamente.</p>
+                  <div className="bg-[#1A1F2B] rounded-2xl px-8 py-4 inline-block">
+                    <p className="text-[10px] text-white/50 uppercase tracking-widest mb-1">Número de póliza</p>
+                    <p className="text-[22px] text-[#F7941D] font-bold font-mono">{polizaGenerada}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 w-full max-w-sm text-left">
+                  {[
+                    { label: 'Asegurado', val: `${valores.nombre || '—'} ${valores.apellido_paterno || ''}` },
+                    { label: 'Producto', val: `GMM ${tipoLabel}` },
+                    { label: 'Verificación', val: 'Biométrica ✓' },
+                  ].map(item => (
+                    <div key={item.label} className="bg-[#EFF2F9] rounded-xl p-3 shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.10)]">
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider mb-0.5">{item.label}</p>
+                      <p className="text-[11px] text-[#1A1F2B] font-semibold leading-tight">{item.val}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => router.push('/agent/polizas')}
+                    className="px-6 py-3 rounded-2xl text-[12px] font-semibold text-white transition-all active:scale-95"
+                    style={{ background: 'linear-gradient(135deg,#F7941D,#e08019)', boxShadow: '0 4px 16px rgba(247,148,29,0.4)' }}>
+                    Ver en Pólizas
+                  </button>
+                  <button onClick={() => { closeFirma(); router.push('/agent/dashboard') }}
+                    className="px-6 py-3 rounded-2xl text-[12px] font-semibold text-[#6B7280] bg-[#EFF2F9] shadow-[-3px_-3px_6px_#FAFBFF,3px_3px_6px_rgba(22,27,29,0.12)] hover:text-[#1A1F2B] transition-colors">
+                    Ir al Dashboard
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -755,3 +1059,4 @@ export default function OriginacionPage() {
     </Suspense>
   )
 }
+

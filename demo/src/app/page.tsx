@@ -81,32 +81,25 @@ export default function IntroPage() {
       />
 
       {/* ── Marca de agua centrada ── */}
-      <div className="absolute top-0 left-0 w-full z-10 flex justify-center pt-6 pointer-events-none select-none">
+      <div className="absolute top-0 left-0 w-full z-10 flex justify-center pt-8 pointer-events-none select-none">
         <span
           style={{
             fontFamily: 'Questrial, sans-serif',
-            letterSpacing: '0.35em',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.55)',
+            letterSpacing: '0.5em',
+            fontSize: '22px',
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.80)',
             textTransform: 'uppercase',
             whiteSpace: 'nowrap',
-            textShadow: '0 1px 6px rgba(0,0,0,0.18)',
+            textShadow: '0 2px 16px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.20)',
           }}
         >
           Insurance Agent OS
         </span>
       </div>
 
-      {/* ── Navbar ── */}
-      <nav className="relative z-20 flex items-center justify-end px-8 pt-7 pb-2 max-w-6xl mx-auto w-full">
-        <Link
-          href="/login"
-          className="px-5 py-2 rounded-full bg-white/15 text-[#1A1F2B] text-xs font-semibold tracking-widest uppercase border border-white/40 backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
-        >
-          Acceder
-        </Link>
-      </nav>
+      {/* ── Navbar ── (solo espaciador) ── */}
+      <nav className="relative z-20 flex items-center justify-end px-8 pt-7 pb-2 max-w-6xl mx-auto w-full pointer-events-none h-16" />
 
       {/* ── Glass panel central ── */}
       <div className="relative z-10 flex-1 flex items-center justify-center px-6 py-12">
