@@ -9,9 +9,27 @@ import {
   LayoutDashboard, Users, FileText, MessageSquare, Calendar,
   BarChart3, Settings, LogOut, Bot, Phone, Layers, ChevronRight,
   Bell, Search, FilePlus, RefreshCw, Menu, X, AlertTriangle,
-  CreditCard, BookOpen, Shield, Tag, Brain, Crown, TrendingUp, Mail, Zap, Users2
+  CreditCard, BookOpen, Shield, Tag, Brain, Crown, TrendingUp, Mail, Users2, ChevronDown
 } from 'lucide-react'
 import { NotificationsPanel } from '@/components/agent/NotificationsPanel'
+
+const ROL_LABEL: Record<string, string> = {
+  agent: 'Agente de seguros',
+  admin: 'Administrador',
+  broker: 'Broker / Despacho',
+  promotoria: 'Promotoría',
+  emission: 'Mesa de emisión',
+  finance: 'Finanzas / Cobranza',
+  service: 'Mesa de servicio',
+  compliance: 'Cumplimiento',
+  client: 'Cliente asegurado',
+}
+
+const PERFILES_DEMO = [
+  { label: 'Agente de seguros', email: 'agente@demo.com', password: 'demo1234', color: '#F7941D' },
+  { label: 'Broker / Despacho', email: 'broker@demo.com', password: 'demo1234', color: '#0057A8' },
+  { label: 'Promotoría', email: 'promotoria@demo.com', password: 'demo1234', color: '#69A481' },
+]
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/agent/dashboard' },
@@ -34,7 +52,7 @@ const NAV_ITEMS = [
   { icon: Phone, label: 'Voz IA', href: '/agent/voz' },
   { icon: Tag, label: 'Catálogos', href: '/agent/catalogos' },
   { icon: Shield, label: 'Compliance', href: '/agent/compliance' },
-  { icon: Brain, label: 'IA Control', href: '/agent/ia-control' },
+  { icon: Brain, label: 'Control IA', href: '/agent/ia-control' },
   { icon: Crown, label: 'Mi Plan', href: '/agent/plan' },
 ]
 
@@ -44,13 +62,15 @@ const BOTTOM_ITEMS = [
 ]
 
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout, isLoading } = useAuth()
+  const { user, login, logout, isLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [expanded, setExpanded] = useState(true)
   const [notifOpen, setNotifOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [perfilOpen, setPerfilOpen] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
+  const perfilRef = useRef<HTMLDivElement>(null)
 
   // Client-side auth guard — redirect to login if no session
   useEffect(() => {
@@ -62,22 +82,41 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   // Close mobile drawer on route change
   useEffect(() => {
     setMobileOpen(false)
+    setPerfilOpen(false)
   }, [pathname])
 
   // Close on ESC
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMobileOpen(false)
+      if (e.key === 'Escape') { setMobileOpen(false); setPerfilOpen(false) }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
+
+  // Close perfil dropdown when clicking outside
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (perfilRef.current && !perfilRef.current.contains(e.target as Node)) {
+        setPerfilOpen(false)
+      }
+    }
+    if (perfilOpen) document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [perfilOpen])
 
   function handleLogout() {
     logout()
     router.push('/login')
   }
 
+  function cambiarPerfil(perfil: typeof PERFILES_DEMO[0]) {
+    login(perfil.email, perfil.password)
+    setPerfilOpen(false)
+    router.push('/agent/dashboard')
+  }
+
+  const rolLabel = ROL_LABEL[user?.role || ''] || 'Usuario'
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'AG'
 
   // Shared nav list (used both in desktop panel and mobile drawer)
@@ -151,7 +190,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
             </div>
             <div>
               <p className="text-[13px] text-[#1A1F2B] tracking-wide truncate max-w-[140px]">{user?.name}</p>
-              <p className="text-[11px] text-[#6B7280]">{user?.role === 'agent' ? 'Agente' : 'Admin'}</p>
+              <p className="text-[11px] text-[#6B7280]">{rolLabel}</p>
             </div>
           </div>
           <button onClick={() => setMobileOpen(false)}
@@ -253,7 +292,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
         <div className="flex items-center justify-between px-4 pt-5 pb-3 shrink-0">
           <div>
             <h2 className="text-[13px] text-[#1A1F2B] tracking-wide truncate">{user?.name}</h2>
-            <p className="text-[11px] text-[#6B7280] truncate">{user?.role === 'agent' ? 'Agente' : 'Administrador'}</p>
+            <p className="text-[11px] text-[#6B7280] truncate">{rolLabel}</p>
             <Link href="/agent/plan" className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] bg-[#F7941D]/15 text-[#F7941D] hover:bg-[#F7941D]/25 transition-colors">
               <Crown size={9} />
               Plan Profesional
@@ -316,6 +355,32 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Selector de perfil demo */}
+            <div ref={perfilRef} className="relative hidden md:block">
+              <button onClick={() => setPerfilOpen(v => !v)}
+                className="flex items-center gap-2 h-9 px-3 rounded-xl bg-[#EFF2F9] shadow-[-3px_-3px_6px_#FAFBFF,3px_3px_6px_rgba(22,27,29,0.12)] text-[#6B7280] hover:text-[#1A1F2B] transition-colors text-[11px] font-semibold">
+                <Users2 size={13} className="text-[#F7941D]" />
+                Vista demo
+                <ChevronDown size={11} className={cn('transition-transform', perfilOpen && 'rotate-180')} />
+              </button>
+              {perfilOpen && (
+                <div className="absolute right-0 top-full mt-2 w-52 bg-[#EFF2F9] rounded-2xl shadow-[-8px_-8px_20px_#FAFBFF,8px_8px_20px_rgba(22,27,29,0.22)] z-50 overflow-hidden py-2">
+                  <p className="text-[9px] text-[#9CA3AF] tracking-widest uppercase px-3 pb-1.5 pt-1">Cambiar a perfil</p>
+                  {PERFILES_DEMO.map(p => (
+                    <button key={p.email} onClick={() => cambiarPerfil(p)}
+                      className={cn('w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] text-left transition-colors hover:bg-white/50',
+                        user?.email === p.email ? 'text-[#1A1F2B] font-semibold' : 'text-[#6B7280]')}>
+                      <div className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center" style={{ background: `${p.color}18` }}>
+                        <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                      </div>
+                      {p.label}
+                      {user?.email === p.email && <span className="ml-auto text-[9px] text-[#F7941D] font-bold">Activo</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Notifications */}
             <button
               onClick={() => setNotifOpen(true)}
