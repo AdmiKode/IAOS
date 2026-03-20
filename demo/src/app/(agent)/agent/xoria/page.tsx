@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Send, Mic, MicOff, Sparkles, User, Plus, Clock, Trash2, MessageSquare } from 'lucide-react'
+import { Send, Mic, MicOff, Sparkles, User, Plus, Clock, Trash2, MessageSquare, Mail, CalendarDays, FileText, Users } from 'lucide-react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
@@ -20,10 +20,29 @@ interface Conversation {
 }
 
 const QUICK_ACTIONS = [
-  { label: 'Resumen del día', prompt: 'Dame un resumen ejecutivo de mi día y prioridades.' },
-  { label: 'Analizar pipeline', prompt: 'Analiza mi pipeline actual y dime qué prospectos debo priorizar.' },
+  { label: 'Resumen del día', prompt: 'Dame un resumen ejecutivo de mi día, agenda y correos pendientes.' },
+  { label: 'Leer correos', prompt: '¿Cuál es el último correo que tengo? Léelo y propón una respuesta.' },
+  { label: 'Mi agenda de hoy', prompt: '¿Qué reuniones o citas tengo hoy? Organízame el día.' },
+  { label: 'Analizar pipeline', prompt: 'Analiza mi pipeline actual y dime qué prospectos debo priorizar hoy.' },
   { label: 'Redactar propuesta', prompt: 'Ayúdame a redactar una propuesta de seguro de Vida para un prospecto corporativo.' },
-  { label: 'Métricas clave', prompt: '¿Cuáles son mis métricas clave este mes y cómo las mejoro?' },
+  { label: 'Métricas clave', prompt: '¿Cuáles son mis métricas clave este mes y cómo están mis ventas?' },
+]
+
+// Mock de correos para el contexto de XORIA
+const MOCK_EMAILS_FOR_XORIA = [
+  { id: 'e1', from: 'Ana López', fromEmail: 'ana.lopez@email.com', subject: 'RE: Aclaración de cobro duplicado — Marzo 2026', body: 'Hola Carlos, muchas gracias por la gestión tan rápida. Entiendo que la devolución del cargo duplicado se hará en 3 a 5 días hábiles por parte de GNP. ¿Recibiré una confirmación cuando esté acreditado en mi cuenta? Saludos, Ana López', date: '2026-03-17', time: '11:02', read: false, folder: 'inbox', starred: true },
+  { id: 'e2', from: 'GNP Seguros — Soporte Agentes', fromEmail: 'agentes@gnp.com.mx', subject: 'Confirmación carta aval — Folio SA-2026-3412', body: 'Estimado agente Mendoza, le confirmamos la aprobación de la carta aval. Asegurada: Ana López. Póliza: GNP-2025-001234. Hospital: Ángeles Lomas. Monto autorizado: $85,000 MXN. Folio: SA-2026-3412.', date: '2026-03-18', time: '10:15', read: false, folder: 'inbox', starred: false },
+  { id: 'e3', from: 'Empresa XYZ — RH', fromEmail: 'rh@empresaxyz.com', subject: 'Bajas de empleados — Colectivo AXA', body: 'Carlos, te enviamos los datos de 3 empleados a dar de baja en el colectivo AXA: Luis Mora, Patricia Salas, Raúl Gómez. Baja efectiva: 31/03/2026.', date: '2026-03-18', time: '09:30', read: true, folder: 'inbox', starred: false },
+  { id: 'e4', from: 'Roberto Sánchez', fromEmail: 'rsanchez@email.com', subject: '¿Cuándo me llega la póliza de vida?', body: 'Hola Carlos, quería preguntarte si ya tienes noticias de Metlife sobre mi póliza de Vida Temporal. Llevo dos semanas esperando.', date: '2026-03-17', time: '18:45', read: true, folder: 'inbox', starred: false },
+]
+
+// Mock directorio de contactos personales con fechas importantes
+const MOCK_CONTACTS = [
+  { nombre: 'María Elena Garza', relacion: 'Esposa', telefono: '33-1234-5678', email: 'mgarza@personal.com', cumpleaños: '15 de julio', aniversario: '23 de septiembre' },
+  { nombre: 'Dr. Ramírez', relacion: 'Médico familiar', telefono: '33-9876-5432', email: 'drrm@clinica.com' },
+  { nombre: 'Jorge Mendoza (papá)', relacion: 'Familia', telefono: '33-5555-1234', cumpleaños: '3 de mayo' },
+  { nombre: 'Lic. Patricia Torres', relacion: 'Abogada fiscal', telefono: '33-7890-1234', email: 'ptorres@despacho.mx' },
+  { nombre: 'Gerente GNP — Zona Occidente', relacion: 'Aseguradora', telefono: '33-4567-8901', email: 'zona.occ@gnp.com.mx' },
 ]
 
 const STORAGE_KEY = 'xoria-history'
@@ -105,6 +124,7 @@ export default function XoriaPage() {
 
   const context = {
     agent: user?.name,
+    fecha_hoy: '19 de marzo de 2026',
     kpis: MOCK_KPIS.map(k => ({ label: k.label, value: k.value })),
     pipeline_count: MOCK_LEADS.length,
     pipeline_by_stage: MOCK_LEADS.reduce((acc, l) => {
@@ -135,6 +155,8 @@ export default function XoriaPage() {
     agenda: MOCK_AGENDA.map(a => ({
       id: a.id, time: a.time, title: a.title, type: a.type, client: a.client,
     })),
+    emails: MOCK_EMAILS_FOR_XORIA,
+    contacts: MOCK_CONTACTS,
   }
 
   async function sendMessage(text: string) {
@@ -243,16 +265,26 @@ export default function XoriaPage() {
             <p className="text-[12px] text-[#1A1F2B] tracking-wide">Acciones rápidas</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            {QUICK_ACTIONS.map(action => (
-              <button
-                key={action.label}
-                onClick={() => sendMessage(action.prompt)}
-                disabled={loading}
-                className="text-left text-[11px] text-[#6B7280] px-3 py-2 rounded-xl bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#F7941D] hover:shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.16)] transition-all duration-150 disabled:opacity-40"
-              >
-                {action.label}
-              </button>
-            ))}
+            {[
+              { label: 'Resumen del día', icon: Sparkles, prompt: 'Dame un resumen ejecutivo de mi día, agenda y correos pendientes.' },
+              { label: 'Leer correos', icon: Mail, prompt: '¿Cuál es el último correo que tengo? Léelo y propón una respuesta.' },
+              { label: 'Mi agenda de hoy', icon: CalendarDays, prompt: '¿Qué reuniones o citas tengo hoy? Organízame el día.' },
+              { label: 'Analizar pipeline', icon: Users, prompt: 'Analiza mi pipeline y dime qué prospectos priorizar hoy.' },
+              { label: 'Redactar propuesta', icon: FileText, prompt: 'Ayúdame a redactar una propuesta de seguro de Vida para un prospecto.' },
+              { label: 'Métricas clave', icon: Sparkles, prompt: '¿Cuáles son mis métricas clave este mes?' },
+            ].map(action => {
+              const AIcon = action.icon
+              return (
+                <button
+                  key={action.label}
+                  onClick={() => sendMessage(action.prompt)}
+                  disabled={loading}
+                  className="text-left flex items-center gap-2 text-[11px] text-[#6B7280] px-3 py-2 rounded-xl bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] hover:text-[#F7941D] hover:shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.16)] transition-all duration-150 disabled:opacity-40"
+                >
+                  <AIcon size={11} className="shrink-0 opacity-60" />{action.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 

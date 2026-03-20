@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { X, AlertTriangle, Clock, FileText, MessageSquare, TrendingUp } from "lucide-react";
 import { clsx } from "clsx";
+import { useRouter } from "next/navigation";
 
 interface Notification {
   id: string;
@@ -11,6 +12,7 @@ interface Notification {
   body: string;
   time: string;
   read: boolean;
+  route: string;
 }
 
 const MOCK_NOTIFICATIONS: Notification[] = [
@@ -21,6 +23,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
     body: "La póliza Auto GM-2024-001 de Carlos Mendoza vence en 5 días.",
     time: "Hace 10 min",
     read: false,
+    route: "/agent/polizas",
   },
   {
     id: "n2",
@@ -29,6 +32,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
     body: "Ana López envió un mensaje: «¿Pueden enviarme el recibo de pago?»",
     time: "Hace 38 min",
     read: false,
+    route: "/agent/mensajes",
   },
   {
     id: "n3",
@@ -37,6 +41,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
     body: "Tienes una llamada con Roberto García a las 15:00 h.",
     time: "Hace 1 h",
     read: false,
+    route: "/agent/agenda",
   },
   {
     id: "n4",
@@ -45,6 +50,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
     body: "Endoso de incremento de suma asegurada pendiente de firma.",
     time: "Hace 2 h",
     read: true,
+    route: "/agent/emision",
   },
   {
     id: "n5",
@@ -53,6 +59,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
     body: "3 clientes con perfil ideal para Seguro de Vida. Ver sugerencias.",
     time: "Hace 3 h",
     read: true,
+    route: "/agent/xoria",
   },
 ];
 
@@ -79,6 +86,7 @@ interface Props {
 
 export function NotificationsPanel({ open, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -97,6 +105,11 @@ export function NotificationsPanel({ open, onClose }: Props) {
     if (open) setTimeout(() => document.addEventListener("mousedown", handleClick), 50);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open, onClose]);
+
+  function handleNotificationClick(n: Notification) {
+    onClose();
+    router.push(n.route);
+  }
 
   const unread = MOCK_NOTIFICATIONS.filter((n) => !n.read).length;
 
@@ -145,13 +158,14 @@ export function NotificationsPanel({ open, onClose }: Props) {
           {MOCK_NOTIFICATIONS.map((n) => {
             const Icon = TYPE_ICON[n.type];
             return (
-              <div
+              <button
                 key={n.id}
+                onClick={() => handleNotificationClick(n)}
                 className={clsx(
-                  "rounded-xl p-4 flex gap-3 transition-all cursor-pointer",
+                  "rounded-xl p-4 flex gap-3 transition-all w-full text-left",
                   n.read
                     ? "neu-sm opacity-70 hover:opacity-100"
-                    : "neu-md"
+                    : "neu-md hover:shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.18)]"
                 )}
               >
                 <div
@@ -174,9 +188,12 @@ export function NotificationsPanel({ open, onClose }: Props) {
                   <p className="text-[#6B7280] text-xs mt-1 leading-relaxed line-clamp-2">
                     {n.body}
                   </p>
-                  <p className="text-[#9CA3AF] text-xs mt-2">{n.time}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[#9CA3AF] text-xs">{n.time}</p>
+                    <span className="text-[10px] text-[#F7941D] font-semibold">Ver →</span>
+                  </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

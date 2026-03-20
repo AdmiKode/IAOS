@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MOCK_AGENDA, MOCK_CLIENTS } from "@/data/mock";
 import { cn } from "@/lib/utils";
-import { Plus, Phone, Users, ArrowRight, CheckSquare, Clock, X, CheckCircle } from "lucide-react";
+import { Plus, Phone, Users, ArrowRight, CheckSquare, Clock, X, CheckCircle, Star, Gift, CalendarDays, BookUser, Search } from "lucide-react";
 import { ClientLink, NeuSelect } from "@/components/ui";
 
 const DAYS_OF_WEEK = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
@@ -38,6 +38,38 @@ const EXTRA_EVENTS = [
 
 const ALL_EVENTS = [...MOCK_AGENDA, ...EXTRA_EVENTS];
 
+// ─── DIRECTORIO DE CONTACTOS PERSONALES ──────────────────────────────────────
+const MOCK_CONTACTS = [
+  { id: 'c1', nombre: 'María Elena Garza', relacion: 'Esposa', telefono: '33-1234-5678', email: 'mgarza@personal.com', categoria: 'familia' },
+  { id: 'c2', nombre: 'Jorge Mendoza', relacion: 'Padre', telefono: '33-5555-1234', email: '', categoria: 'familia' },
+  { id: 'c3', nombre: 'Dr. Alejandro Ramírez', relacion: 'Médico familiar', telefono: '33-9876-5432', email: 'drrm@clinica.com', categoria: 'servicios' },
+  { id: 'c4', nombre: 'Lic. Patricia Torres', relacion: 'Abogada fiscal', telefono: '33-7890-1234', email: 'ptorres@despacho.mx', categoria: 'profesional' },
+  { id: 'c5', nombre: 'Gerente GNP Zona Occ.', relacion: 'Aseguradora', telefono: '33-4567-8901', email: 'zona.occ@gnp.com.mx', categoria: 'aseguradora' },
+  { id: 'c6', nombre: 'Contador Enrique Salinas', relacion: 'Contador', telefono: '33-2345-6789', email: 'esalinas@conta.mx', categoria: 'profesional' },
+  { id: 'c7', nombre: 'Mario Ruiz — AXA', relacion: 'Ejecutivo aseguradora', telefono: '33-3456-7890', email: 'mario.r@axa.com.mx', categoria: 'aseguradora' },
+]
+
+// ─── FECHAS IMPORTANTES ────────────────────────────────────────────────────────
+const MOCK_FECHAS = [
+  { id: 'f1', titulo: 'Cumpleaños María Elena', categoria: 'cumpleaños', fecha: '15 de julio', persona: 'Esposa', diasFaltan: 118 },
+  { id: 'f2', titulo: 'Aniversario de bodas', categoria: 'aniversario', fecha: '23 de septiembre', persona: 'María Elena Garza', diasFaltan: 188 },
+  { id: 'f3', titulo: 'Cumpleaños papá Jorge', categoria: 'cumpleaños', fecha: '3 de mayo', persona: 'Jorge Mendoza', diasFaltan: 45 },
+  { id: 'f4', titulo: 'Renovación contrato agencia', categoria: 'negocio', fecha: '1 de agosto', persona: 'Seguros Premier', diasFaltan: 135 },
+  { id: 'f5', titulo: 'Vencimiento licencia CNSF', categoria: 'profesional', fecha: '30 de junio', persona: 'Cédula propia', diasFaltan: 103 },
+  { id: 'f6', titulo: 'Cumpleaños Ana López (cliente VIP)', categoria: 'cliente', fecha: '28 de abril', persona: 'Cliente VIP', diasFaltan: 40 },
+]
+
+const CATEGORIA_COLORS: Record<string, { color: string; bg: string }> = {
+  familia:     { color: '#7C1F31', bg: 'rgba(124,31,49,0.10)' },
+  profesional: { color: '#3B82F6', bg: 'rgba(59,130,246,0.10)' },
+  servicios:   { color: '#6B7280', bg: 'rgba(107,114,128,0.10)' },
+  aseguradora: { color: '#F7941D', bg: 'rgba(247,148,29,0.10)' },
+  cumpleaños:  { color: '#7C1F31', bg: 'rgba(124,31,49,0.10)' },
+  aniversario: { color: '#69A481', bg: 'rgba(105,164,129,0.10)' },
+  negocio:     { color: '#F7941D', bg: 'rgba(247,148,29,0.10)' },
+  cliente:     { color: '#3B82F6', bg: 'rgba(59,130,246,0.10)' },
+}
+
 const TIME_SLOTS = [
   "08:00", "09:00", "10:00", "11:00", "12:00",
   "13:00", "14:00", "15:00", "16:00", "17:00", "18:00",
@@ -51,6 +83,10 @@ export default function AgendaPage() {
   const [showModal, setShowModal] = useState(false);
   const [eventSaved, setEventSaved] = useState(false);
   const [newEvent, setNewEvent] = useState({ titulo: '', tipo: 'call', cliente: '', fecha: '', hora: '', notas: '' });
+  const [activeTab, setActiveTab] = useState<'agenda' | 'directorio' | 'fechas'>('agenda');
+  const [contactSearch, setContactSearch] = useState('');
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showFechaModal, setShowFechaModal] = useState(false);
 
   function openModal() {
     setShowModal(true); setEventSaved(false);
@@ -82,19 +118,54 @@ export default function AgendaPage() {
   return (
     <>
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-[#1A1F2B] text-2xl font-bold tracking-tight">Agenda</h1>
           <p className="text-[#6B7280] text-sm mt-1">
             {selectedDay} de {MONTHS[viewMonth]} de {viewYear}
           </p>
         </div>
-        <button onClick={openModal} className="flex items-center gap-2 text-sm px-4 py-2.5 bg-[#F7941D] text-white rounded-xl shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
-          <Plus size={16} />
-          Nuevo evento
-        </button>
+        <div className="flex items-center gap-3">
+          {activeTab === 'directorio' && (
+            <button onClick={() => setShowContactModal(true)} className="flex items-center gap-2 text-sm px-4 py-2.5 bg-[#3B82F6] text-white rounded-xl shadow-[0_4px_12px_rgba(59,130,246,0.3)] hover:bg-[#2563EB] transition-colors">
+              <Plus size={16} /> Contacto
+            </button>
+          )}
+          {activeTab === 'fechas' && (
+            <button onClick={() => setShowFechaModal(true)} className="flex items-center gap-2 text-sm px-4 py-2.5 bg-[#7C1F31] text-white rounded-xl shadow-[0_4px_12px_rgba(124,31,49,0.3)] hover:bg-[#6b1a2a] transition-colors">
+              <Plus size={16} /> Fecha importante
+            </button>
+          )}
+          {activeTab === 'agenda' && (
+            <button onClick={openModal} className="flex items-center gap-2 text-sm px-4 py-2.5 bg-[#F7941D] text-white rounded-xl shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
+              <Plus size={16} /> Nuevo evento
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-[#EFF2F9] p-1.5 rounded-2xl shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.08)] w-fit">
+        {([
+          { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+          { id: 'directorio', label: 'Directorio', icon: BookUser },
+          { id: 'fechas', label: 'Fechas importantes', icon: Gift },
+        ] as const).map(tab => {
+          const TIcon = tab.icon
+          return (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={cn('flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all',
+                activeTab === tab.id
+                  ? 'bg-white text-[#1A1F2B] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)]'
+                  : 'text-[#9CA3AF] hover:text-[#6B7280]')}>
+              <TIcon size={13} />{tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* TAB: AGENDA */}
+      {activeTab === 'agenda' && (
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         <div className="flex flex-col gap-4">
           <div className="neu-md rounded-2xl p-5">
@@ -222,6 +293,106 @@ export default function AgendaPage() {
           </div>
         </div>
       </div>
+      )} {/* end agenda tab */}
+
+      {/* TAB: DIRECTORIO */}
+      {activeTab === 'directorio' && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 bg-[#EFF2F9] rounded-xl px-3 shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.08)]">
+            <Search size={14} className="text-[#9CA3AF] shrink-0" />
+            <input value={contactSearch} onChange={e => setContactSearch(e.target.value)} placeholder="Buscar contacto..."
+              className="flex-1 bg-transparent py-2.5 text-[13px] text-[#1A1F2B] outline-none placeholder:text-[#9CA3AF]" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {MOCK_CONTACTS.filter(c => !contactSearch || c.nombre.toLowerCase().includes(contactSearch.toLowerCase()) || c.relacion.toLowerCase().includes(contactSearch.toLowerCase())).map(c => {
+              const cat = CATEGORIA_COLORS[c.categoria] ?? { color: '#6B7280', bg: 'rgba(107,114,128,0.10)' }
+              return (
+                <div key={c.id} className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-4px_-4px_10px_#FAFBFF,4px_4px_10px_rgba(22,27,29,0.12)] flex flex-col gap-3">
+                  <div className="flex items-start justify-between">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[15px] font-bold text-white shrink-0"
+                      style={{ background: cat.color }}>
+                      {c.nombre.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                    </div>
+                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold uppercase tracking-wider" style={{ color: cat.color, background: cat.bg }}>
+                      {c.categoria}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-[#1A1F2B] font-semibold leading-tight">{c.nombre}</p>
+                    <p className="text-[11px] text-[#9CA3AF] mt-0.5">{c.relacion}</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {c.telefono && (
+                      <a href={`tel:${c.telefono.replace(/-/g,'')}`} className="flex items-center gap-2 text-[11px] text-[#6B7280] hover:text-[#F7941D] transition-colors">
+                        <Phone size={11} />{c.telefono}
+                      </a>
+                    )}
+                    {c.email && (
+                      <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-[11px] text-[#6B7280] hover:text-[#3B82F6] transition-colors truncate">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 6 10-6"/></svg>
+                        {c.email}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {/* Agregar nuevo contacto */}
+            <button onClick={() => setShowContactModal(true)} className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.10)] border-2 border-dashed border-[#D1D5DB] flex flex-col items-center justify-center gap-2 text-[#9CA3AF] hover:text-[#F7941D] hover:border-[#F7941D]/40 transition-all min-h-[140px]">
+              <Plus size={20} />
+              <span className="text-[11px] font-semibold">Agregar contacto</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: FECHAS IMPORTANTES */}
+      {activeTab === 'fechas' && (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {MOCK_FECHAS.map(f => {
+              const cat = CATEGORIA_COLORS[f.categoria] ?? { color: '#6B7280', bg: 'rgba(107,114,128,0.10)' }
+              const isUrgente = f.diasFaltan <= 30
+              return (
+                <div key={f.id} className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-4px_-4px_10px_#FAFBFF,4px_4px_10px_rgba(22,27,29,0.12)] flex flex-col gap-3">
+                  <div className="flex items-start justify-between">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: cat.bg }}>
+                      {f.categoria === 'cumpleaños' ? <Gift size={16} style={{ color: cat.color }} /> : <Star size={16} style={{ color: cat.color }} />}
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold uppercase tracking-wider" style={{ color: cat.color, background: cat.bg }}>
+                        {f.categoria}
+                      </span>
+                      {isUrgente && (
+                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-semibold bg-[#7C1F31]/10 text-[#7C1F31]">
+                          ¡Pronto!
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-[#1A1F2B] font-semibold leading-tight">{f.titulo}</p>
+                    <p className="text-[11px] text-[#9CA3AF] mt-0.5">{f.persona}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <CalendarDays size={11} className="text-[#9CA3AF]" />
+                      <span className="text-[11px] text-[#6B7280]">{f.fecha}</span>
+                    </div>
+                    <span className="text-[11px] font-semibold" style={{ color: isUrgente ? '#7C1F31' : cat.color }}>
+                      En {f.diasFaltan} días
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+            <button onClick={() => setShowFechaModal(true)} className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.10)] border-2 border-dashed border-[#D1D5DB] flex flex-col items-center justify-center gap-2 text-[#9CA3AF] hover:text-[#7C1F31] hover:border-[#7C1F31]/40 transition-all min-h-[160px]">
+              <Plus size={20} />
+              <span className="text-[11px] font-semibold">Agregar fecha importante</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
 
       {/* Modal nuevo evento */}
@@ -300,6 +471,56 @@ export default function AgendaPage() {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal nuevo contacto */}
+      {showContactModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(26,31,43,0.5)', backdropFilter: 'blur(10px)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm shadow-[-16px_-16px_32px_#FAFBFF,16px_16px_32px_rgba(22,27,29,0.22)]">
+            <div className="flex items-center justify-between p-5 border-b border-[#D1D5DB]/20">
+              <p className="text-[15px] text-[#1A1F2B] font-semibold">Nuevo contacto</p>
+              <button onClick={() => setShowContactModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:text-[#7C1F31] transition-colors"><X size={13} /></button>
+            </div>
+            <div className="p-5 flex flex-col gap-3">
+              {(['Nombre completo', 'Relación', 'Teléfono', 'Correo electrónico'] as const).map(field => (
+                <div key={field}>
+                  <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">{field}</label>
+                  <input placeholder={`${field}...`} className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                </div>
+              ))}
+              <button onClick={() => setShowContactModal(false)} className="w-full py-3 rounded-xl bg-[#3B82F6] text-white text-[13px] font-semibold mt-1">Guardar contacto</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal nueva fecha importante */}
+      {showFechaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(26,31,43,0.5)', backdropFilter: 'blur(10px)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm shadow-[-16px_-16px_32px_#FAFBFF,16px_16px_32px_rgba(22,27,29,0.22)]">
+            <div className="flex items-center justify-between p-5 border-b border-[#D1D5DB]/20">
+              <p className="text-[15px] text-[#1A1F2B] font-semibold">Nueva fecha importante</p>
+              <button onClick={() => setShowFechaModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:text-[#7C1F31] transition-colors"><X size={13} /></button>
+            </div>
+            <div className="p-5 flex flex-col gap-3">
+              {(['Título', 'Persona / Descripción', 'Fecha (ej: 15 de julio)'] as const).map(field => (
+                <div key={field}>
+                  <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">{field}</label>
+                  <input placeholder={`${field}...`} className="w-full bg-[#EFF2F9] px-3 py-2.5 text-[13px] text-[#1A1F2B] rounded-xl outline-none shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)] placeholder:text-[#9CA3AF]" />
+                </div>
+              ))}
+              <div>
+                <label className="text-[10px] text-[#9CA3AF] uppercase tracking-wide mb-1 block">Categoría</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['cumpleaños', 'aniversario', 'negocio', 'profesional', 'cliente'].map(cat => (
+                    <button key={cat} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold capitalize border border-[#D1D5DB] text-[#9CA3AF] hover:border-[#7C1F31] hover:text-[#7C1F31] transition-colors">{cat}</button>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => setShowFechaModal(false)} className="w-full py-3 rounded-xl bg-[#7C1F31] text-white text-[13px] font-semibold mt-1">Guardar fecha</button>
             </div>
           </div>
         </div>
