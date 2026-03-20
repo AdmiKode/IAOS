@@ -80,13 +80,18 @@ export default function IntroPage() {
         }}
       />
 
+      {/* ── Marca de agua centrada ── */}
+      <div className="absolute top-0 left-0 w-full z-10 flex justify-center pt-7 pointer-events-none select-none">
+        <span
+          className="text-white/18 text-sm font-[Questrial] tracking-[0.45em] uppercase whitespace-nowrap"
+          style={{ fontFamily: 'Questrial, sans-serif', letterSpacing: '0.45em' }}
+        >
+          Insurance Agent OS
+        </span>
+      </div>
+
       {/* ── Navbar ── */}
-      <nav className="relative z-20 flex items-center justify-between px-8 pt-7 pb-2 max-w-6xl mx-auto w-full">
-        {/* Título cristal donde antes estaba el logo */}
-        <div className="flex flex-col leading-tight">
-          <span className="text-white/50 text-lg font-bold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.2)]">Insurance</span>
-          <span className="text-white/50 text-lg font-bold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.2)]">Agent OS</span>
-        </div>
+      <nav className="relative z-20 flex items-center justify-end px-8 pt-7 pb-2 max-w-6xl mx-auto w-full">
         <Link
           href="/login"
           className="px-5 py-2 rounded-full bg-white/15 text-[#1A1F2B] text-xs font-semibold tracking-widest uppercase border border-white/40 backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
