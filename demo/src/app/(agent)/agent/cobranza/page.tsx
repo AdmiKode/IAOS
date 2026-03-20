@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { ClientLink } from '@/components/ui'
 
 const STATUS_COLOR: Record<string, string> = {
   pagado: '#69A481', pendiente: '#F7941D', vencido: '#7C1F31', confirmado: '#69A481',
@@ -376,7 +377,7 @@ export default function CobranzaPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-[13px] text-[#1A1F2B] font-semibold">{pago.clientName}</p>
+                      <ClientLink name={pago.clientName} plain className="text-[13px] font-semibold" />
                       <p className="text-[14px] font-bold" style={{ color: STATUS_COLOR[pago.status] }}>{pago.amount}</p>
                     </div>
                     <p className="text-[11px] text-[#6B7280] truncate">{pago.concept}</p>
@@ -415,7 +416,7 @@ export default function CobranzaPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <p className="text-[12px] text-[#1A1F2B] font-semibold">{ph.clientName}</p>
+                  <ClientLink name={ph.clientName} plain className="text-[12px] font-semibold" />
                   <p className="text-[13px] font-bold text-[#1A1F2B]">MXN ${ph.monto.toLocaleString()}</p>
                 </div>
                 <p className="text-[10px] text-[#6B7280] truncate">{ph.concepto}</p>

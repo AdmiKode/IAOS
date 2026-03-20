@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import Link from 'next/link'
 import { MOCK_AGENTES_EQUIPO } from '@/data/mock'
 import {
   Users, TrendingUp, DollarSign, Target, Award, Activity,
@@ -176,10 +177,12 @@ function AgenteModal({ agente, onClose }: { agente: Agente; onClose: () => void 
           <button className="flex-1 py-2.5 rounded-xl text-[11px] font-semibold text-[#1A1F2B] bg-[#EFF2F9] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:shadow-none transition-all flex items-center justify-center gap-1.5">
             <Mail size={12} /> Enviar mensaje
           </button>
-          <button className="flex-1 py-2.5 rounded-xl text-[11px] font-semibold text-white hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
-            style={{ background: 'linear-gradient(135deg,#F7941D,#e08019)' }}>
-            <BarChart3 size={12} /> Ver reporte completo
-          </button>
+          <Link href={`/agent/equipo/${agente.id}`} className="flex-1">
+            <button className="w-full py-2.5 rounded-xl text-[11px] font-semibold text-white hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
+              style={{ background: 'linear-gradient(135deg,#F7941D,#e08019)' }}>
+              <BarChart3 size={12} /> Ver reporte completo
+            </button>
+          </Link>
         </div>
       </div>
     </div>

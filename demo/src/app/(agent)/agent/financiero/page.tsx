@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { TrendingUp, TrendingDown, DollarSign, FileText, Download, Plus, X, CheckCircle, Clock, AlertCircle, BarChart2, PieChart, CreditCard, Receipt, Building2, ChevronRight, Filter } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, FileText, Download, Plus, X, CheckCircle, Clock, AlertCircle, BarChart2, PieChart, CreditCard, Receipt, Building2, ChevronRight, Filter, Bell, MessageSquare, Phone, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MOCK_POLICIES, MOCK_PAYMENTS, MOCK_CHART_DATA } from '@/data/mock'
 
@@ -43,6 +43,8 @@ export default function FinancieroPage() {
   const [tab, setTab] = useState<Tab>('resumen')
   const [cfdiDetail, setCfdiDetail] = useState<typeof CFDI_LIST[0] | null>(null)
   const [newCfdi, setNewCfdi] = useState(false)
+  const [recordatorio, setRecordatorio] = useState<typeof MOCK_PAYMENTS[0] | null>(null)
+  const [recordatorioEnviado, setRecordatorioEnviado] = useState(false)
 
   // KPIs
   const ingresosMes = 36850
@@ -358,10 +360,14 @@ export default function FinancieroPage() {
 
           {/* Pagos pendientes */}
           <div className="bg-[#EFF2F9] rounded-2xl p-5 shadow-[-5px_-5px_12px_#FAFBFF,5px_5px_12px_rgba(22,27,29,0.14)]">
-            <p className="text-[13px] text-[#1A1F2B] mb-3">Recibos pendientes de cobro</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[13px] text-[#1A1F2B]">Recibos pendientes de cobro</p>
+              <p className="text-[11px] text-[#9CA3AF]">Toca para enviar recordatorio</p>
+            </div>
             <div className="flex flex-col gap-2">
               {MOCK_PAYMENTS.filter(p => p.status === 'pendiente' || p.status === 'vencido').map(p => (
-                <div key={p.id} className="flex items-center gap-3 bg-[#EFF2F9] rounded-xl p-3 shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.10)]">
+                <button key={p.id} onClick={() => { setRecordatorio(p); setRecordatorioEnviado(false) }}
+                  className="flex items-center gap-3 bg-[#EFF2F9] rounded-xl p-3 shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.10)] w-full text-left hover:shadow-[0_2px_12px_rgba(247,148,29,0.18)] hover:scale-[1.01] transition-all group">
                   <div className={cn('w-2 h-2 rounded-full shrink-0', p.status === 'vencido' ? 'bg-[#7C1F31]' : 'bg-[#F7941D]')} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[12px] text-[#1A1F2B] truncate">{p.clientName}</p>
@@ -371,11 +377,14 @@ export default function FinancieroPage() {
                     <p className="text-[12px] text-[#1A1F2B]">{p.amount}</p>
                     <p className="text-[10px] text-[#9CA3AF]">Vence {p.dueDate}</p>
                   </div>
-                  <span className={cn('text-[10px] px-2 py-0.5 rounded-full shrink-0',
-                    p.status === 'vencido' ? 'bg-[#7C1F31]/15 text-[#7C1F31]' : 'bg-[#F7941D]/15 text-[#F7941D]')}>
-                    {p.status}
-                  </span>
-                </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={cn('text-[10px] px-2 py-0.5 rounded-full',
+                      p.status === 'vencido' ? 'bg-[#7C1F31]/15 text-[#7C1F31]' : 'bg-[#F7941D]/15 text-[#F7941D]')}>
+                      {p.status}
+                    </span>
+                    <Bell size={13} className="text-[#9CA3AF] group-hover:text-[#F7941D] transition-colors" />
+                  </div>
+                </button>
               ))}
             </div>
           </div>
@@ -471,6 +480,92 @@ export default function FinancieroPage() {
                 <button onClick={() => setNewCfdi(false)} className="flex-1 py-2.5 rounded-xl bg-[#F7941D] text-white text-[12px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A]">Generar y timbrar</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL RECORDATORIO DE PAGO ── */}
+      {recordatorio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(26,31,43,0.5)', backdropFilter: 'blur(10px)' }}
+          onClick={() => setRecordatorio(null)}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm shadow-[-16px_-16px_32px_#FAFBFF,16px_16px_32px_rgba(22,27,29,0.22)]"
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#D1D5DB]/20">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#F7941D]/10 flex items-center justify-center">
+                  <Bell size={14} className="text-[#F7941D]" />
+                </div>
+                <p className="text-[14px] text-[#1A1F2B] font-semibold">Enviar recordatorio</p>
+              </div>
+              <button onClick={() => setRecordatorio(null)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:text-[#7C1F31] transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+            {/* Info del recibo */}
+            <div className="px-5 py-4 border-b border-[#D1D5DB]/20">
+              <p className="text-[12px] text-[#1A1F2B] font-semibold">{recordatorio.clientName}</p>
+              <p className="text-[11px] text-[#9CA3AF] mt-0.5">{recordatorio.concept}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[15px] text-[#F7941D] font-bold">{recordatorio.amount}</span>
+                <span className="text-[10px] text-[#9CA3AF]">· Vence {recordatorio.dueDate}</span>
+                <span className={cn('text-[9px] px-2 py-0.5 rounded-full ml-auto',
+                  recordatorio.status === 'vencido' ? 'bg-[#7C1F31]/12 text-[#7C1F31]' : 'bg-[#F7941D]/12 text-[#F7941D]')}>
+                  {recordatorio.status}
+                </span>
+              </div>
+            </div>
+            {/* Mensaje sugerido */}
+            <div className="px-5 py-3 border-b border-[#D1D5DB]/20">
+              <p className="text-[10px] text-[#9CA3AF] uppercase tracking-wider mb-1.5">Mensaje sugerido por XORIA</p>
+              <div className="bg-white/50 rounded-xl px-3 py-2.5">
+                <p className="text-[12px] text-[#1A1F2B] leading-relaxed">
+                  Hola {recordatorio.clientName.split(' ')[0]}, te recordamos que tienes un recibo pendiente de {recordatorio.amount} con vencimiento el {recordatorio.dueDate}. ¿Puedo ayudarte a realizar el pago? 🙏
+                </p>
+              </div>
+            </div>
+            {/* Canales */}
+            {!recordatorioEnviado ? (
+              <div className="px-5 py-4 flex flex-col gap-2">
+                <p className="text-[11px] text-[#9CA3AF] uppercase tracking-wider mb-1">Enviar por:</p>
+                {[
+                  { icon: MessageSquare, label: 'WhatsApp', sub: 'Mensaje predeterminado', color: '#25D366', bg: 'bg-[#25D366]/10' },
+                  { icon: Mail, label: 'Correo electrónico', sub: 'Plantilla formal', color: '#F7941D', bg: 'bg-[#F7941D]/10' },
+                  { icon: Phone, label: 'Llamada telefónica', sub: 'Script de cobranza', color: '#1A1F2B', bg: 'bg-[#1A1F2B]/8' },
+                ].map(opt => {
+                  const Icon = opt.icon
+                  return (
+                    <button key={opt.label}
+                      onClick={() => setRecordatorioEnviado(true)}
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 w-full text-left hover:scale-[1.01] transition-all group"
+                      style={{ background: 'rgba(239,242,249,1)', boxShadow: '-3px -3px 7px #FAFBFF, 3px 3px 7px rgba(22,27,29,0.12)' }}>
+                      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', opt.bg)}>
+                        <Icon size={16} style={{ color: opt.color }} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[13px] text-[#1A1F2B] font-semibold">{opt.label}</p>
+                        <p className="text-[10px] text-[#9CA3AF]">{opt.sub}</p>
+                      </div>
+                      <ChevronRight size={14} className="text-[#D1D5DB] group-hover:text-[#F7941D] transition-colors" />
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="px-5 py-6 flex flex-col items-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-[#69A481]/12 flex items-center justify-center">
+                  <CheckCircle size={28} className="text-[#69A481]" />
+                </div>
+                <p className="text-[15px] text-[#1A1F2B] font-semibold">Recordatorio enviado</p>
+                <p className="text-[12px] text-[#9CA3AF] text-center">El cliente recibirá una notificación. XORIA hará seguimiento automático en 24 hrs si no hay respuesta.</p>
+                <button onClick={() => setRecordatorio(null)}
+                  className="w-full py-2.5 rounded-xl bg-[#F7941D] text-white text-[13px] font-semibold shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors mt-2">
+                  Listo
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

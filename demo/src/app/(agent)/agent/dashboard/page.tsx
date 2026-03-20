@@ -1,8 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { Card, CardHeader, Badge } from '@/components/ui'
-import { MOCK_KPIS, MOCK_LEADS, MOCK_AGENDA, MOCK_CHART_DATA, PIPELINE_STAGES, MOCK_POLICIES, MOCK_TICKETS, MOCK_PAYMENTS } from '@/data/mock'
-import { TrendingUp, TrendingDown, ArrowRight, CalendarDays, Mic, X, FileText, CreditCard, AlertTriangle, RefreshCw, Users, BarChart3 } from 'lucide-react'
+import { MOCK_KPIS, MOCK_LEADS, MOCK_AGENDA, MOCK_CHART_DATA, PIPELINE_STAGES, MOCK_POLICIES, MOCK_TICKETS, MOCK_PAYMENTS, MOCK_AGENTES_EQUIPO } from '@/data/mock'
+import { TrendingUp, TrendingDown, ArrowRight, CalendarDays, Mic, X, FileText, CreditCard, AlertTriangle, RefreshCw, Users, BarChart3, Star, Target, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Link from 'next/link'
@@ -265,11 +265,242 @@ function PipelineColumn({ stage }: { stage: string }) {
   )
 }
 
+// ─── DASHBOARD BROKER / PROMOTORÍA ─────────────────────────────────────────
+
+const agentes = MOCK_AGENTES_EQUIPO
+const totalPolizas = agentes.reduce((s, a) => s + a.polizasActivas, 0)
+const totalPrima = agentes.reduce((s, a) => s + a.primaTotal, 0)
+const totalComision = agentes.reduce((s, a) => s + a.comisionMes, 0)
+const totalLeads = agentes.reduce((s, a) => s + a.leads, 0)
+const avgCierre = Math.round(agentes.reduce((s, a) => s + a.tasaCierre, 0) / agentes.length)
+const agentesActivos = agentes.filter(a => a.status === 'activo').length
+
+function fmt(n: number) {
+  return n >= 1000000
+    ? '$' + (n / 1000000).toFixed(1) + 'M'
+    : n >= 1000
+    ? '$' + (n / 1000).toFixed(0) + 'K'
+    : '$' + n.toLocaleString('es-MX')
+}
+
+const BROKER_KPIS = [
+  { label: 'Pólizas activas (equipo)', value: totalPolizas.toString(), change: '+18%', up: true, icon: FileText },
+  { label: 'Prima total del equipo', value: fmt(totalPrima), change: '+11%', up: true, icon: CreditCard },
+  { label: 'Comisión mensual total', value: fmt(totalComision), change: '+9%', up: true, icon: Target },
+  { label: 'Leads en pipeline', value: totalLeads.toString(), change: '+7', up: true, icon: Users },
+  { label: 'Tasa de cierre promedio', value: avgCierre + '%', change: '+4%', up: true, icon: BarChart3 },
+  { label: 'Agentes activos', value: agentesActivos + ' / ' + agentes.length, change: '1 inactivo', up: false, icon: Star },
+]
+
+function BrokerDashboard({ greeting, role, name, agency }: { greeting: string; role: string; name?: string; agency?: string }) {
+  const isBroker = role === 'broker'
+  const sortedAgentes = [...agentes].sort((a, b) => b.primaTotal - a.primaTotal)
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-[22px] text-[#1A1F2B] tracking-wide">{greeting}, {name?.split(' ')[0]}</h1>
+          <p className="text-[12px] text-[#9CA3AF] mt-0.5">
+            {agency} · {isBroker ? 'Panel de Broker' : 'Panel de Promotoría'} · {new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </div>
+        <Link href="/agent/equipo">
+          <button className="flex items-center gap-2 h-10 px-5 rounded-2xl text-white text-[13px] font-semibold transition-all hover:scale-[1.03]"
+            style={{ background: 'linear-gradient(135deg,#F7941D,#e08019)', boxShadow: '0 6px 20px rgba(247,148,29,0.4)' }}>
+            <Users size={15} /> Gestionar equipo
+          </button>
+        </Link>
+      </div>
+
+      {/* KPIs consolidados */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        {BROKER_KPIS.map(kpi => {
+          const Icon = kpi.icon
+          return (
+            <div key={kpi.label}
+              className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-8px_-8px_18px_#FAFBFF,8px_8px_18px_rgba(22,27,29,0.18)] flex flex-col gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[10px] text-[#9CA3AF] tracking-widest uppercase leading-tight line-clamp-2 flex-1 min-w-0">{kpi.label}</p>
+                <span className={cn('flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-lg shrink-0',
+                  kpi.up ? 'text-[#69A481] bg-[#69A481]/12' : 'text-[#7C1F31] bg-[#7C1F31]/12')}>
+                  {kpi.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                  <span className="whitespace-nowrap">{kpi.change}</span>
+                </span>
+              </div>
+              <p className="text-[20px] text-[#1A1F2B] leading-none truncate">{kpi.value}</p>
+              <div className="w-7 h-7 rounded-xl bg-[#F7941D]/10 flex items-center justify-center self-end">
+                <Icon size={14} className="text-[#F7941D]" />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Ranking agentes + Pipeline consolidado */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
+        {/* Ranking */}
+        <div className="bg-[#EFF2F9] rounded-2xl p-5 shadow-[-8px_-8px_18px_#FAFBFF,8px_8px_18px_rgba(22,27,29,0.18)]">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-[15px] text-[#1A1F2B] tracking-wide">Ranking de agentes</h3>
+              <p className="text-[12px] text-[#9CA3AF] mt-0.5">Por prima mensual · mes actual</p>
+            </div>
+            <Link href="/agent/equipo">
+              <button className="flex items-center gap-1.5 text-[12px] text-[#F7941D] hover:underline shrink-0">
+                Ver equipo <ArrowRight size={12} />
+              </button>
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            {sortedAgentes.map((ag, idx) => (
+              <Link key={ag.id} href={`/agent/equipo/${ag.id}`}>
+                <div className="flex items-center gap-3 bg-white/50 rounded-xl px-4 py-3 hover:bg-white/80 transition-colors cursor-pointer group">
+                  <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-[12px] font-black"
+                    style={{
+                      background: idx === 0 ? '#F7941D' : idx === 1 ? '#9CA3AF' : idx === 2 ? '#C0884C' : '#EFF2F9',
+                      color: idx < 3 ? 'white' : '#6B7280',
+                      boxShadow: idx < 3 ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                    }}>
+                    {idx + 1}
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-[#1A1F2B] flex items-center justify-center text-white text-[11px] font-bold shrink-0">
+                    {ag.avatar}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] text-[#1A1F2B] leading-tight truncate font-medium group-hover:text-[#F7941D] transition-colors">{ag.name}</p>
+                    <p className="text-[10px] text-[#9CA3AF] mt-0.5">{ag.polizasActivas} pólizas · {ag.tasaCierre}% cierre</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[13px] text-[#F7941D] font-bold">{fmt(ag.primaTotal)}</p>
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      <div className="h-1.5 w-16 bg-[#EFF2F9] rounded-full overflow-hidden shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]">
+                        <div className="h-full rounded-full transition-all"
+                          style={{ width: ag.avanceMeta + '%', background: ag.avanceMeta >= 90 ? '#69A481' : ag.avanceMeta >= 70 ? '#F7941D' : '#7C1F31' }} />
+                      </div>
+                      <span className="text-[10px] text-[#9CA3AF]">{ag.avanceMeta}%</span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-[#D1D5DB] group-hover:text-[#F7941D] transition-colors shrink-0" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Pipeline consolidado */}
+        <div className="bg-[#EFF2F9] rounded-2xl p-5 shadow-[-8px_-8px_18px_#FAFBFF,8px_8px_18px_rgba(22,27,29,0.18)]">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-[15px] text-[#1A1F2B] tracking-wide">Pipeline consolidado</h3>
+              <p className="text-[12px] text-[#9CA3AF] mt-0.5">Todos los agentes · {MOCK_LEADS.length} prospectos activos</p>
+            </div>
+            <Link href="/agent/pipeline">
+              <button className="flex items-center gap-1.5 text-[12px] text-[#F7941D] hover:underline shrink-0">
+                Ver completo <ArrowRight size={12} />
+              </button>
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            {PIPELINE_STAGES.slice(0, 8).map(stage => {
+              const count = MOCK_LEADS.filter(l => l.stage === stage.id).length
+              const pct = Math.round((count / MOCK_LEADS.length) * 100)
+              const color = STAGE_COLORS[stage.id] || '#9CA3AF'
+              return (
+                <div key={stage.id} className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                  <span className="text-[11px] text-[#6B7280] w-28 shrink-0 truncate">{stage.label}</span>
+                  <div className="flex-1 h-2 bg-[#EFF2F9] rounded-full overflow-hidden shadow-[inset_1px_1px_2px_rgba(0,0,0,0.08)]">
+                    <div className="h-full rounded-full transition-all" style={{ width: pct + '%', background: color }} />
+                  </div>
+                  <span className="text-[11px] text-[#9CA3AF] w-6 text-right shrink-0">{count}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="mt-4 pt-4 border-t border-[#E5E7EB]/60 grid grid-cols-2 gap-3">
+            {[
+              { label: 'Valor total en pipeline', val: '$2.87M' },
+              { label: 'Prospectos calientes (>80%)', val: MOCK_LEADS.filter(l => l.score >= 80).length.toString() },
+            ].map(item => (
+              <div key={item.label} className="bg-white/50 rounded-xl px-3 py-2">
+                <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+                <p className="text-[15px] text-[#1A1F2B] font-bold mt-0.5">{item.val}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Alertas del equipo + XORIA briefing */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="bg-[#EFF2F9] rounded-2xl p-5 shadow-[-8px_-8px_18px_#FAFBFF,8px_8px_18px_rgba(22,27,29,0.18)]">
+          <h3 className="text-[15px] text-[#1A1F2B] mb-4 tracking-wide">Alertas del equipo</h3>
+          <div className="flex flex-col gap-2">
+            {[
+              { label: 'Héctor Ríos — sin actividad hace 9 días', type: 'warning', link: '/agent/equipo/ag4' },
+              { label: '14 pólizas vencen en los próximos 30 días', type: 'danger', link: '/agent/renovaciones' },
+              { label: 'Valeria Castillo al 99% de su meta mensual', type: 'success', link: '/agent/equipo/ag5' },
+              { label: '3 tickets de siniestros sin asignar', type: 'danger', link: '/agent/tickets' },
+              { label: 'Diego Pacheco — 5 leads sin seguimiento', type: 'warning', link: '/agent/equipo/ag2' },
+            ].map((alert, i) => (
+              <Link key={i} href={alert.link}>
+                <div className={cn('flex items-center gap-3 rounded-xl px-4 py-3 hover:opacity-80 transition-opacity cursor-pointer',
+                  alert.type === 'danger' ? 'bg-[#7C1F31]/8' : alert.type === 'warning' ? 'bg-[#F7941D]/8' : 'bg-[#69A481]/8')}>
+                  <AlertTriangle size={13} className={alert.type === 'danger' ? 'text-[#7C1F31] shrink-0' : alert.type === 'warning' ? 'text-[#F7941D] shrink-0' : 'text-[#69A481] shrink-0'} />
+                  <p className="text-[12px] text-[#1A1F2B] flex-1">{alert.label}</p>
+                  <ChevronRight size={12} className="text-[#D1D5DB] shrink-0" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* XORIA Briefing */}
+        <div className="bg-gradient-to-br from-[#1A1F2B] to-[#2D3548] rounded-2xl p-5 flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 shadow-[0_4px_16px_rgba(247,148,29,0.3)]">
+              <Image src="/Icono xoria.png" alt="XORIA" width={48} height={48} className="object-cover w-full h-full" />
+            </div>
+            <div>
+              <p className="text-[13px] text-white font-semibold">Briefing de XORIA</p>
+              <p className="text-[10px] text-[#9CA3AF]">{isBroker ? 'Análisis del equipo broker' : 'Análisis de la promotoría'}</p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {[
+              { text: 'Valeria Castillo generó el 42% de la prima del mes. Considera asignarle más leads de GMM Colectivo.' },
+              { text: '3 agentes tienen tasas de cierre por debajo del promedio del mercado (58%). Sugerencia: sesión de coaching.' },
+              { text: 'El ramo Auto muestra el mayor crecimiento este mes (+22%). Diego Pacheco puede aprovechar esto.' },
+            ].map((item, i) => (
+              <div key={i} className="bg-white/8 rounded-xl px-4 py-3">
+                <p className="text-[12px] text-[#D1D5DB] leading-relaxed">{item.text}</p>
+              </div>
+            ))}
+          </div>
+          <Link href="/agent/xoria">
+            <button className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#F7941D] rounded-xl text-white text-[13px] font-semibold hover:bg-[#e08019] transition-colors">
+              Preguntar a XORIA <ArrowRight size={13} />
+            </button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AgentDashboard() {
   const { user } = useAuth()
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches'
   const [activeKpi, setActiveKpi] = useState<typeof MOCK_KPIS[0] | null>(null)
+
+  // ── Vista diferenciada para Broker y Promotoría ──────────────────────────
+  if (user?.role === 'broker' || user?.role === 'promotoria') {
+    return <BrokerDashboard greeting={greeting} role={user.role} name={user.name} agency={user.agency} />
+  }
 
   return (
     <>
