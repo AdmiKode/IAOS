@@ -1,4 +1,4 @@
-import { MockUser, Policy, Lead, KPI, Ticket, Payment, AgendaItem, ChartDataPoint } from '@/types'
+import { MockUser, Policy, Lead, KPI, Ticket, Payment, AgendaItem, ChartDataPoint, UserRole } from '@/types'
 
 // ─── USUARIOS DEMO ───────────────────────────────────────────────────────────
 export const DEMO_USERS: MockUser[] = [
