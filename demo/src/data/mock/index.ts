@@ -7,14 +7,16 @@ export const DEMO_USERS: MockUser[] = [
   { id: 'u3', name: 'Ana López', email: 'cliente@demo.com', role: 'client' },
   { id: 'u4', name: 'Marco Reyes', email: 'broker@demo.com', role: 'broker' as UserRole, agency: 'Reyes Broker & Asociados' },
   { id: 'u5', name: 'Sandra Vidal', email: 'promotoria@demo.com', role: 'promotoria' as UserRole, agency: 'Promotoria Vidal Grupo' },
+  { id: 'u6', name: 'GNP Seguros', email: 'aseguradora@demo.com', role: 'aseguradora' as UserRole, agency: 'GNP Seguros S.A. de C.V.' },
 ]
 
 export const DEMO_CREDENTIALS = [
-  { email: 'agente@demo.com',     password: 'demo1234', role: 'agent',      redirect: '/agent/dashboard' },
-  { email: 'admin@demo.com',      password: 'demo1234', role: 'admin',      redirect: '/agent/dashboard' },
-  { email: 'cliente@demo.com',    password: 'demo1234', role: 'client',     redirect: '/client/inicio' },
-  { email: 'broker@demo.com',     password: 'demo1234', role: 'broker',     redirect: '/agent/dashboard' },
-  { email: 'promotoria@demo.com', password: 'demo1234', role: 'promotoria', redirect: '/agent/equipo' },
+  { email: 'agente@demo.com',        password: 'demo1234', role: 'agent',        redirect: '/agent/dashboard' },
+  { email: 'admin@demo.com',         password: 'demo1234', role: 'admin',        redirect: '/agent/dashboard' },
+  { email: 'cliente@demo.com',       password: 'demo1234', role: 'client',       redirect: '/client/inicio' },
+  { email: 'broker@demo.com',        password: 'demo1234', role: 'broker',       redirect: '/agent/dashboard' },
+  { email: 'promotoria@demo.com',    password: 'demo1234', role: 'promotoria',   redirect: '/agent/equipo' },
+  { email: 'aseguradora@demo.com',   password: 'demo1234', role: 'aseguradora',  redirect: '/agent/aseguradora' },
 ]
 
 // ─── EQUIPO DE AGENTES (vista promotoria/broker/admin) ───────────────────────

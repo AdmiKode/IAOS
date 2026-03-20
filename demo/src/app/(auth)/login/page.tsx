@@ -2,17 +2,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Mail, Lock, Eye, EyeOff, Chrome, Apple, AlertCircle, User, Building2, Users2, Shield, Briefcase } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Chrome, Apple, AlertCircle, User, Building2, Users2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
 const DEMO_PROFILES = [
-  { label: 'Agente', email: 'agente@demo.com', password: 'demo1234', icon: User, color: '#F7941D', desc: 'Agente independiente' },
-  { label: 'Admin/Despacho', email: 'admin@demo.com', password: 'demo1234', icon: Shield, color: '#1A1F2B', desc: 'Administrador general' },
-  { label: 'Broker', email: 'broker@demo.com', password: 'demo1234', icon: Briefcase, color: '#0057A8', desc: 'Broker con equipo' },
+  { label: 'Agente', email: 'agente@demo.com', password: 'demo1234', icon: User, color: '#F7941D', desc: 'Agente de seguros independiente' },
   { label: 'Promotoria', email: 'promotoria@demo.com', password: 'demo1234', icon: Users2, color: '#69A481', desc: 'Directora de promotoria' },
-  { label: 'Cliente', email: 'cliente@demo.com', password: 'demo1234', icon: Building2, color: '#7C1F31', desc: 'Asegurado / Portal cliente' },
+  { label: 'Aseguradora', email: 'aseguradora@demo.com', password: 'demo1234', icon: Building2, color: '#1A1F2B', desc: 'GNP Seguros' },
 ]
 
 export default function LoginPage() {
@@ -124,16 +122,17 @@ export default function LoginPage() {
             <span className="text-[10px] text-[#9CA3AF] tracking-widest uppercase">Perfiles demo</span>
             <div className="flex-1 h-px bg-[#D1D5DB]" />
           </div>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-3 gap-2">
             {DEMO_PROFILES.map(profile => (
               <button key={profile.email} onClick={() => selectProfile(profile)}
-                className="flex flex-col items-center gap-1 p-2 rounded-xl text-center transition-all hover:bg-white/50 group"
+                className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-center transition-all hover:bg-white/50 group"
                 title={`${profile.email} / ${profile.password}`}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center transition-all group-hover:scale-110"
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110"
                   style={{ background: `${profile.color}15`, border: `1px solid ${profile.color}30` }}>
-                  <profile.icon size={14} style={{ color: profile.color }} />
+                  <profile.icon size={16} style={{ color: profile.color }} />
                 </div>
                 <p className="text-[9px] text-[#9CA3AF] leading-tight font-medium group-hover:text-[#1A1F2B] transition-colors">{profile.label}</p>
+                <p className="text-[8px] text-[#9CA3AF]/70 leading-tight">{profile.desc}</p>
               </button>
             ))}
           </div>

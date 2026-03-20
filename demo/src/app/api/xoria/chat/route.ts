@@ -1,128 +1,231 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// ──────────────────────────────────────────────────────────────────────────────
+// XORIA Chat API — Multi-model routing + Tavily external search
+// Routing: Groq → rápido/clasificación | Anthropic → análisis | OpenAI → default
+// ──────────────────────────────────────────────────────────────────────────────
+
+type ModelProvider = 'groq' | 'anthropic' | 'openai'
+
+function selectModel(message: string, context: Record<string, unknown>): ModelProvider {
+  const msg = message.toLowerCase()
+  const perfil = (context?.perfil as string) || ''
+
+  // Groq: clasificación, consultas rápidas, respuestas cortas
+  if (
+    msg.includes('cuántos') || msg.includes('cuántas') || msg.includes('total de') ||
+    msg.includes('lista de') || msg.includes('resumen rápido') || msg.includes('status') ||
+    msg.length < 60
+  ) return 'groq'
+
+  // Anthropic: análisis complejos, siniestros, underwriting, reportes
+  if (
+    perfil.includes('_claims') || perfil.includes('_uw') || perfil.includes('financiero') ||
+    msg.includes('analiza') || msg.includes('compara') || msg.includes('riesgo') ||
+    msg.includes('dictamen') || msg.includes('recomendación') || msg.includes('estrategia')
+  ) return 'anthropic'
+
+  // OpenAI default (XORIA principal)
+  return 'openai'
+}
+
+async function searchTavily(query: string): Promise<string> {
+  const tavilyKey = process.env.TAVILY_API_KEY
+  if (!tavilyKey) return ''
+  try {
+    const res = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: tavilyKey,
+        query: `seguros México ${query}`,
+        search_depth: 'basic',
+        max_results: 3,
+        include_answer: true,
+      }),
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return ''
+    const data = await res.json()
+    const answer = data.answer || ''
+    const snippets = (data.results || []).slice(0, 2).map((r: { content: string; url: string }) => `• ${r.content?.slice(0, 150)}…`).join('\n')
+    return answer ? `Información actualizada:\n${answer}\n${snippets}` : snippets
+  } catch {
+    return ''
+  }
+}
+
+function needsExternalSearch(message: string): boolean {
+  const msg = message.toLowerCase()
+  return (
+    msg.includes('regulación') || msg.includes('cnsf') || msg.includes('circular') ||
+    msg.includes('amis') || msg.includes('solvencia') || msg.includes('normativa') ||
+    msg.includes('tasa') || msg.includes('tarifa') || msg.includes('mercado') ||
+    msg.includes('competencia') || msg.includes('gnp') || msg.includes('axxa') ||
+    msg.includes('metlife') || msg.includes('mapfre') || msg.includes('boletín')
+  )
+}
+
+function buildSystemPrompt(context: Record<string, unknown>, externalInfo: string): string {
+  const perfil = (context?.perfil as string) || 'agente'
+
+  const perfilInstrucciones: Record<string, string> = {
+    aseguradora_uw: 'Eres experto en suscripción de seguros. Analiza solicitudes, scores de riesgo, expedientes y recomienda decisiones de aprobación/rechazo basadas en los datos del contexto.',
+    aseguradora_polizas: 'Eres experto en administración de pólizas. Ayudas con endosos, renovaciones, cancelaciones y seguimiento de cartera.',
+    aseguradora_billing: 'Eres experto en cobranza y comisiones de seguros. Analiza primas cobradas, vencidas, comisiones y eficiencia de cobro.',
+    aseguradora_claims: 'Eres experto en siniestros. Analiza reclamaciones, reservas técnicas, tiempos de resolución y recomienda acciones a los ajustadores.',
+    aseguradora_red: 'Eres experto en redes de distribución de seguros. Analiza el desempeño de promotorias y agentes, rankings, cumplimiento de metas y estrategias de crecimiento.',
+    agente: 'Eres copiloto ejecutivo del agente. Ayudas con cartera, clientes, renovaciones, correos y agenda.',
+    promotoria: 'Eres asistente de la promotoria. Ayudas con gestión de agentes, producción, comisiones y reportes.',
+  }
+
+  const instruccion = perfilInstrucciones[perfil] || perfilInstrucciones['agente']
+
+  return `Eres XORIA, copiloto de inteligencia artificial del Insurance Agent OS (IAOS) para GNP Seguros México.
+${instruccion}
+
+REGLAS:
+- Siempre en español, profesional y conciso.
+- Sin asteriscos dobles (**) ni markdown. Solo texto plano con saltos de línea.
+- Usa los datos del contexto. Si la respuesta está ahí, cítala con precisión (nombres, montos, fechas reales).
+- Máximo 200 palabras a menos que se pida documento completo.
+- Cuando propongas acciones, termina con "¿Confirmas?" o "¿Lo hago?"
+
+${externalInfo ? `\nINFORMACIÓN EXTERNA ACTUALIZADA (Tavily):\n${externalInfo}\n` : ''}
+
+CONTEXTO DEL SISTEMA:
+${JSON.stringify(context || {})}`
+}
+
+async function callGroq(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string | null> {
+  const key = process.env.GROQ_API_KEY
+  if (!key) return null
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
+        max_tokens: 500,
+        temperature: 0.5,
+      }),
+      signal: AbortSignal.timeout(12000),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.choices?.[0]?.message?.content || null
+  } catch { return null }
+}
+
+async function callAnthropic(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string | null> {
+  const key = process.env.ANTHROPIC_API_KEY
+  if (!key) return null
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-3-haiku-20240307',
+        system: systemPrompt,
+        messages: messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content })),
+        max_tokens: 600,
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.content?.[0]?.text || null
+  } catch { return null }
+}
+
+async function callOpenAI(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string | null> {
+  const key = process.env.OPENAI_API_KEY
+  if (!key) return null
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
+        max_tokens: 600,
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.choices?.[0]?.message?.content || null
+  } catch { return null }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { messages, context } = await req.json()
+    const body = await req.json()
+    // Support both {messages, context} and {message, context} shapes
+    const context: Record<string, unknown> = body.context || {}
+    const messages: { role: string; content: string }[] = body.messages ||
+      (body.message ? [{ role: 'user', content: body.message }] : [])
 
-    // Intentar ALEON API primero
-    const aleonUrl = process.env.ALEON_API_URL
-    const aleonToken = process.env.SERVICE_TOKEN_ALEON
-
-    if (aleonUrl && aleonToken && aleonToken !== 'your-aleon-token') {
-      try {
-        const res = await fetch(`${aleonUrl}/v1/xoria/chat`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${aleonToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ messages, context }),
-          signal: AbortSignal.timeout(10000),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          return NextResponse.json({ reply: data.reply || data.content || data.message })
-        }
-      } catch {
-        // ALEON no disponible — fallback a OpenAI
-      }
+    if (!messages.length) {
+      return NextResponse.json({ reply: 'Sin mensaje recibido.', response: 'Sin mensaje recibido.' })
     }
 
-    // Fallback: OpenAI GPT-4o
-    const openaiKey = process.env.OPENAI_API_KEY
-    if (openaiKey) {
-      const systemPrompt = `Eres XORIA, asistente operativa de inteligencia artificial del Insurance Agent OS.
-Tu identidad: copiloto ejecutivo, especialista en seguros, correo, agenda, reuniones y gestión de cartera.
-Respondes SIEMPRE en español, de forma clara y profesional.
-NUNCA uses asteriscos dobles (**) ni markdown. Solo texto plano con saltos de línea normales.
+    const lastMessage = messages[messages.length - 1]?.content || ''
 
-CAPACIDADES ACTIVAS EN ESTA SESIÓN:
-
-1. CORREO: Tienes acceso a la bandeja del agente (correos en el contexto).
-   - Si te preguntan "¿cuál es el último correo?" o "¿qué hay en mi bandeja?", lee los emails del contexto y RESÚMELOS.
-   - Si te piden leer un correo específico, cita el asunto, de quién es y el contenido completo.
-   - Si te piden proponer una respuesta, redáctala lista para enviar, encabezando con "BORRADOR DE RESPUESTA:".
-   - Si confirman que quieren enviarla, responde: "Correo enviado a [nombre]. Copia guardada en Enviados."
-   - NUNCA digas que no tienes acceso al correo — tienes los datos en el contexto.
-
-2. AGENDA Y REUNIONES: Tienes la agenda completa del agente.
-   - Lee los eventos del contexto. Si preguntan "¿qué tengo hoy?", lista los eventos con hora.
-   - Si piden agendar algo: confirma con "Agendado: [título] el [fecha] a las [hora]. ¿Confirmas?"
-   - Si detectas conflicto de horarios, avísalo.
-   - Para reuniones, ofrece generar minuta o resumen de acuerdos si te lo piden.
-   - Si te dicen "agenda esto", crea el evento y confirma.
-
-3. MINUTAS Y REUNIONES: Si el usuario describe una reunión o acuerdos tomados, genera una minuta estructurada con: participantes, puntos tratados, acuerdos, próximos pasos y responsables.
-
-4. DIRECTORIO Y FECHAS IMPORTANTES: Tienes acceso a contactos personales y fechas especiales del agente (cumpleaños, aniversarios). Si te preguntan por un contacto o fecha, búscalos en el contexto y responde con los datos reales.
-
-5. DATOS DEL SISTEMA: Tienes acceso total al workspace con:
-   - KPIs del agente (pólizas activas, prima mensual, leads, renovaciones)
-   - Cartera de clientes completa (nombre, correo, teléfono, notas)
-   - Pólizas (tipo, aseguradora, fechas, prima, número)
-   - Pipeline de ventas por etapa
-   - Siniestros (tipo, estado, monto, aseguradora)
-   - Pagos y cobranza
-   - Agenda y citas
-   - Correos recibidos, enviados y borradores
-   NUNCA digas que no tienes datos — siempre búscalos en el contexto antes de responder.
-
-6. ASISTENTE GENERAL: Si te hacen preguntas de contexto general de seguros (coberturas, ramos, regulación CNSF, aseguradoras), responde con tu conocimiento. Si la pregunta es completamente fuera del dominio (ej. cartelera de cine), amablemente di: "Estoy optimizada para tu operación de seguros. Para eso, te sugiero buscarlo en Google. ¿En qué más te puedo ayudar?"
-
-CONTEXTO ACTIVO DEL AGENTE:
-${JSON.stringify(context || {})}
-
-REGLAS DE RESPUESTA:
-- Si hay datos en el contexto que responden la pregunta, ÚSA LOS. No inventes.
-- Sé específica con nombres, fechas y montos reales del contexto.
-- Cuando propongas acciones (enviar correo, agendar, etc.), termina con "¿Confirmas?" o "¿Quieres que lo haga?"
-- Respuestas concisas máximo 200 palabras, a menos que se pida un documento completo.`
-
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages,
-          ],
-          max_tokens: 600,
-          temperature: 0.7,
-        }),
-        signal: AbortSignal.timeout(15000),
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        const reply = data.choices?.[0]?.message?.content || 'Sin respuesta.'
-        return NextResponse.json({ reply })
-      }
+    // 1. Tavily external search if needed
+    let externalInfo = ''
+    if (needsExternalSearch(lastMessage)) {
+      externalInfo = await searchTavily(lastMessage)
     }
 
-    // Demo fallback sin API
-    // Demo fallback sin API — respuestas contextuales basadas en el texto del usuario
-    const lastMsg = (messages[messages.length - 1]?.content || '').toLowerCase()
-    let reply = ''
-    if (lastMsg.includes('correo') || lastMsg.includes('bandeja') || lastMsg.includes('email') || lastMsg.includes('último')) {
-      reply = 'Tienes 3 correos sin leer:\n\n1. Ana López — "RE: Aclaración de cobro duplicado" (hoy, 11:02)\n2. GNP Seguros — "Confirmación carta aval Folio SA-2026-3412" (ayer, 10:15)\n3. Empresa XYZ RH — "Bajas de empleados Colectivo AXA" (ayer, 09:30)\n\n¿Quieres que te lea alguno o que redacte una respuesta?'
-    } else if (lastMsg.includes('agenda') || lastMsg.includes('hoy') || lastMsg.includes('reunión') || lastMsg.includes('cita')) {
-      reply = 'Tu agenda de hoy, 19 de marzo:\n\n09:00 — Llamada con Empresa XYZ (GMM colectivo)\n11:00 — Presentación de propuesta, Laura Vega\n13:00 — Seguimiento renovación, Ana López\n16:00 — Revisión expediente, Miguel Ángel Cruz\n\n¿Quieres que te ayude a preparar alguna de estas reuniones?'
-    } else if (lastMsg.includes('poliza') || lastMsg.includes('póliza') || lastMsg.includes('venc')) {
-      reply = 'Tienes 14 pólizas con renovación en los próximos 30 días. Las más urgentes:\n\nAna López — GMM Individual — vence 7 de abril\nCarlos Ruiz — Auto Amplia — vence 12 de abril\nGrupo Norte — GMM Colectivo — vence 18 de abril\n\n¿Quiero que redacte un correo de aviso de renovación para alguno?'
-    } else if (lastMsg.includes('minuta') || lastMsg.includes('acuerdo') || lastMsg.includes('reunión termin')) {
-      reply = 'MINUTA DE REUNIÓN\nFecha: 19 de marzo de 2026\n\nParticipantes: [indica los nombres]\nPuntos tratados:\n1. [Primer punto tratado]\n2. [Segundo punto tratado]\n\nAcuerdos:\n— [Acuerdo 1] — Responsable: [nombre] — Fecha límite: [fecha]\n\nPróximos pasos:\n— [Acción siguiente]\n\n¿Quieres que complete esta minuta con los detalles que me des?'
-    } else if (lastMsg.includes('cliente') || lastMsg.includes('ana') || lastMsg.includes('roberto') || lastMsg.includes('lópez')) {
-      reply = 'Ana López es cliente activa desde 2024. Tiene póliza GMM Individual con GNP (póliza GNP-2025-001234), prima mensual $8,500. Último contacto: seguimiento de renovación agendado para hoy a las 13:00. Tiene un correo pendiente de respuesta sobre cobro duplicado.\n\n¿Quieres que redacte la respuesta o preparamos la renovación?'
-    } else if (lastMsg.includes('venta') || lastMsg.includes('mes') || lastMsg.includes('total') || lastMsg.includes('polizas vendidas')) {
-      reply = 'Este mes de marzo llevas 247 pólizas activas en cartera, con prima mensual acumulada de $184,320. Comparado con febrero, subiste 8.3%. Tu tasa de cierre es 67%, por encima del promedio sectorial.\n\nEn el pipeline tienes 38 leads, de los cuales 3 están en etapa de negociación listos para cerrar esta semana.'
+    // 2. Build system prompt
+    const systemPrompt = buildSystemPrompt(context, externalInfo)
+
+    // 3. Route to best model
+    const provider = selectModel(lastMessage, context)
+
+    let reply: string | null = null
+
+    if (provider === 'groq') {
+      reply = await callGroq(systemPrompt, messages)
+      if (!reply) reply = await callOpenAI(systemPrompt, messages)
+    } else if (provider === 'anthropic') {
+      reply = await callAnthropic(systemPrompt, messages)
+      if (!reply) reply = await callOpenAI(systemPrompt, messages)
     } else {
-      reply = 'Estoy conectada a tu workspace: 247 pólizas activas, 38 leads en pipeline, 14 renovaciones próximas y 3 correos sin leer. ¿Sobre qué quieres que trabajemos? Puedo leer tus correos, resumir tu agenda, redactar propuestas o analizar tu cartera.'
+      reply = await callOpenAI(systemPrompt, messages)
+      if (!reply) reply = await callGroq(systemPrompt, messages)
+      if (!reply) reply = await callAnthropic(systemPrompt, messages)
     }
-    return NextResponse.json({ reply, demo: true })
+
+    if (reply) {
+      return NextResponse.json({ reply, response: reply, model: provider })
+    }
+
+    // 4. Demo fallback sin APIs
+    const msg = lastMessage.toLowerCase()
+    let fallback = ''
+    if (msg.includes('solicitud') || msg.includes('riesgo') || msg.includes('score')) {
+      fallback = 'Tienes 2 solicitudes pendientes de alta prioridad: SOL-2026-0041 (Carlos Méndez, score 88, Bajo riesgo) y SOL-2026-0035 (Patricia Leal, score 67, Medio riesgo). Ambas están completas en documentación. ¿Las proceso?'
+    } else if (msg.includes('poliza') || msg.includes('póliza') || msg.includes('venc')) {
+      fallback = 'Cartera activa: 5 pólizas vigentes, 2 por renovar (Sofía Torres → 15 Ene 2027, Empresa Textil → 01 Mar 2026). La más urgente es Empresa Textil S.A. ¿Iniciamos renovación?'
+    } else if (msg.includes('cobr') || msg.includes('prima') || msg.includes('pago')) {
+      fallback = 'Efectividad de cobranza actual: 80%. Primas cobradas: $149,700 de $202,900. Cuentas vencidas: Empresa Textil ($42,000) y Patricia Leal ($9,200). ¿Notifico a los agentes?'
+    } else if (msg.includes('siniest')) {
+      fallback = 'ClaimCenter activo: 7 siniestros. Reserva técnica estimada: $685,700. 2 casos con más de 10 días abiertos: SIN-2026-0015 (Sofía Torres, 13 días) y SIN-2026-0013 (Patricia Leal, 20 días). ¿Los priorizo?'
+    } else if (msg.includes('agente') || msg.includes('promotoria') || msg.includes('red')) {
+      fallback = 'Red activa: 5 promotorias, 7 agentes. Top productor: Valeria Castillo ($284,000, 114% de meta). Promotoria líder: Promotoria Vidal Grupo ($842,000). ¿Quieres el reporte completo?'
+    } else {
+      fallback = 'XORIA conectada. Módulo activo: Aseguradora GNP. Tengo visibilidad de Underwriting, PolicyCenter, BillingCenter, ClaimCenter y Red de Distribución. ¿En qué área trabajamos?'
+    }
+
+    return NextResponse.json({ reply: fallback, response: fallback, demo: true })
 
   } catch (error) {
     console.error('XORIA API error:', error)

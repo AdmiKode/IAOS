@@ -1,5 +1,5 @@
 // Tipos base del sistema
-export type UserRole = 'admin' | 'agent' | 'broker' | 'promotoria' | 'emission' | 'finance' | 'service' | 'compliance' | 'client'
+export type UserRole = 'admin' | 'agent' | 'broker' | 'promotoria' | 'aseguradora' | 'emission' | 'finance' | 'service' | 'compliance' | 'client'
 
 export interface MockUser {
   id: string

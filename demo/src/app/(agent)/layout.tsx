@@ -18,6 +18,7 @@ const ROL_LABEL: Record<string, string> = {
   admin: 'Administrador',
   broker: 'Broker / Despacho',
   promotoria: 'Promotoría',
+  aseguradora: 'GNP Seguros',
   emission: 'Mesa de emisión',
   finance: 'Finanzas / Cobranza',
   service: 'Mesa de servicio',
@@ -27,8 +28,8 @@ const ROL_LABEL: Record<string, string> = {
 
 const PERFILES_DEMO = [
   { label: 'Agente de seguros', email: 'agente@demo.com', password: 'demo1234', color: '#F7941D' },
-  { label: 'Broker / Despacho', email: 'broker@demo.com', password: 'demo1234', color: '#0057A8' },
   { label: 'Promotoría', email: 'promotoria@demo.com', password: 'demo1234', color: '#69A481' },
+  { label: 'GNP Seguros', email: 'aseguradora@demo.com', password: 'demo1234', color: '#1A1F2B' },
 ]
 
 const NAV_ITEMS = [
