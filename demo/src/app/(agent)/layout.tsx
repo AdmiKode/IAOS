@@ -119,6 +119,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
 
   const rolLabel = ROL_LABEL[user?.role || ''] || 'Usuario'
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'AG'
+  const isCarrierRoute = pathname.startsWith('/agent/aseguradora')
 
   // Shared nav list (used both in desktop panel and mobile drawer)
   function NavList({ onItemClick }: { onItemClick?: () => void }) {
@@ -161,6 +162,37 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
           )
         })}
       </>
+    )
+  }
+
+  if (isCarrierRoute) {
+    return (
+      <div className="min-h-screen bg-[#EFF2F9] flex flex-col">
+        <header className="h-[60px] border-b border-[#D1D5DB]/30 px-4 md:px-6 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] text-[#6E7F8D] tracking-[0.16em] uppercase">GNP Seguros · Core Operativo</p>
+            <p className="text-[14px] text-[#1A1F2B]">Perfil aseguradora</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setNotifOpen(true)}
+              className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-[#EFF2F9] shadow-[-3px_-3px_6px_#FAFBFF,3px_3px_6px_rgba(22,27,29,0.12)] text-[#6B7280] hover:text-[#1A1F2B] transition-colors"
+            >
+              <Bell size={16} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#F7941D] rounded-full" />
+            </button>
+            <div className="w-9 h-9 rounded-xl bg-[#F7941D]/15 flex items-center justify-center text-[#F7941D] text-[12px]">
+              {initials}
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {children}
+        </main>
+
+        <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      </div>
     )
   }
 

@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils'
 export interface NeuSelectOption {
   value: string
   label: string
+  icon?: React.ReactNode
+  desc?: string
 }
 
 interface NeuSelectProps {
@@ -14,7 +16,9 @@ interface NeuSelectProps {
   options: NeuSelectOption[]
   placeholder?: string
   className?: string
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'lg'
+  label?: string
+  disabled?: boolean
 }
 
 export function NeuSelect({
@@ -24,6 +28,8 @@ export function NeuSelect({
   placeholder = 'Seleccionar...',
   className,
   size = 'md',
+  label,
+  disabled = false,
 }: NeuSelectProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -39,53 +45,77 @@ export function NeuSelect({
   }, [])
 
   const selected = options.find(o => o.value === value)
-  const py = size === 'sm' ? 'py-2' : 'py-2.5'
-  const txt = size === 'sm' ? 'text-[12px]' : 'text-[13px]'
+
+  const sizeMap = {
+    sm: { py: 'py-2 px-3',   txt: 'text-[12px]', itemPy: 'py-2 px-3' },
+    md: { py: 'py-2.5 px-4', txt: 'text-[13px]', itemPy: 'py-2.5 px-4' },
+    lg: { py: 'py-3 px-4',   txt: 'text-[14px]', itemPy: 'py-3 px-4' },
+  }
+  const { py, txt, itemPy } = sizeMap[size]
 
   return (
     <div ref={ref} className={cn('relative', className)}>
+      {label && (
+        <label className="block text-[11px] text-[#6B7280] tracking-widest uppercase mb-1.5 font-medium">
+          {label}
+        </label>
+      )}
       {/* Trigger */}
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(o => !o)}
         className={cn(
-          'w-full flex items-center justify-between gap-2 px-4 rounded-xl transition-all outline-none',
-          'bg-[#EFF2F9] text-[#1A1F2B]',
+          'w-full flex items-center justify-between gap-2 rounded-xl transition-all duration-200 outline-none',
+          // Glass base
+          'bg-white/40 backdrop-blur-sm border',
+          disabled && 'opacity-40 cursor-not-allowed',
+          !disabled && 'cursor-pointer',
+          // States
           open
-            ? 'shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.14)]'
-            : 'shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.13)] hover:shadow-[-4px_-4px_9px_#FAFBFF,4px_4px_9px_rgba(22,27,29,0.16)]',
+            ? 'border-[#F7941D]/60 bg-[#F7941D]/5 shadow-[inset_-2px_-2px_5px_rgba(255,255,255,0.8),inset_2px_2px_5px_rgba(22,27,29,0.12)]'
+            : selected
+            ? 'border-[#F7941D]/40 bg-[#F7941D]/4 shadow-[-3px_-3px_8px_#FAFBFF,3px_3px_8px_rgba(22,27,29,0.13)]'
+            : 'border-white/60 shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.13)] hover:border-[#F7941D]/30',
           py, txt
         )}
       >
-        <span className={cn('truncate', !selected && 'text-[#9CA3AF]')}>
+        <span className={cn(
+          'truncate flex items-center gap-2 font-medium',
+          selected ? 'text-[#F7941D]' : 'text-[#9CA3AF]'
+        )}>
+          {selected?.icon && <span className="shrink-0">{selected.icon}</span>}
           {selected ? selected.label : placeholder}
         </span>
         <ChevronDown
           size={13}
-          className={cn('shrink-0 text-[#9CA3AF] transition-transform duration-200', open && 'rotate-180')}
+          className={cn(
+            'shrink-0 transition-all duration-200',
+            open ? 'rotate-180 text-[#F7941D]' : 'text-[#9CA3AF]'
+          )}
         />
       </button>
 
-      {/* Dropdown panel */}
+      {/* Dropdown panel — glass */}
       {open && (
         <div className={cn(
           'absolute z-50 left-0 right-0 mt-1.5 rounded-2xl overflow-hidden',
-          'bg-[#EFF2F9] shadow-[-8px_-8px_20px_#FAFBFF,8px_8px_20px_rgba(22,27,29,0.18)]',
-          'border border-[#D1D5DB]/20',
-          'max-h-[220px] overflow-y-auto'
+          'bg-white/80 backdrop-blur-md',
+          'border border-white/70',
+          'shadow-[-6px_-6px_16px_rgba(250,251,255,0.9),6px_6px_20px_rgba(22,27,29,0.20)]',
+          'max-h-[260px] overflow-y-auto'
         )}>
-          {/* Placeholder option */}
           {placeholder && (
             <button
               type="button"
               onClick={() => { onChange(''); setOpen(false) }}
               className={cn(
-                'w-full flex items-center justify-between px-4 py-2.5 transition-colors',
-                'text-[#B5BFC6] hover:bg-[#F7941D]/8',
+                'w-full flex items-center px-4 py-2.5 transition-all duration-150',
+                'text-[#9CA3AF] hover:bg-[#F7941D]/8 hover:text-[#F7941D]',
                 txt
               )}
             >
-              <span>{placeholder}</span>
+              <span className="italic">{placeholder}</span>
             </button>
           )}
 
@@ -97,16 +127,25 @@ export function NeuSelect({
                 type="button"
                 onClick={() => { onChange(opt.value); setOpen(false) }}
                 className={cn(
-                  'w-full flex items-center justify-between px-4 py-2.5 transition-colors gap-3',
+                  'w-full flex items-center justify-between gap-3 transition-all duration-150',
+                  itemPy,
                   isSelected
-                    ? 'bg-[#F7941D]/10 text-[#F7941D]'
-                    : 'text-[#1A1F2B] hover:bg-[#F7941D]/6 hover:text-[#F7941D]',
-                  i > 0 && 'border-t border-[#D1D5DB]/15',
+                    ? 'bg-[#F7941D]/12 text-[#F7941D]'
+                    : 'text-[#1A1F2B] hover:bg-[#F7941D]/8 hover:text-[#F7941D]',
+                  i > 0 && 'border-t border-[#EFF2F9]/80',
                   txt
                 )}
               >
-                <span className="truncate text-left">{opt.label}</span>
-                {isSelected && <Check size={12} className="shrink-0 text-[#F7941D]" />}
+                <span className="flex items-center gap-2 truncate text-left font-medium">
+                  {opt.icon && <span className={cn('shrink-0', isSelected ? 'text-[#F7941D]' : 'text-[#9CA3AF]')}>{opt.icon}</span>}
+                  <span className="truncate">{opt.label}</span>
+                  {opt.desc && <span className="text-[10px] text-[#9CA3AF] font-normal shrink-0 hidden sm:inline">— {opt.desc}</span>}
+                </span>
+                {isSelected && (
+                  <span className="w-5 h-5 rounded-full bg-[#F7941D] flex items-center justify-center shrink-0">
+                    <Check size={11} className="text-white" />
+                  </span>
+                )}
               </button>
             )
           })}

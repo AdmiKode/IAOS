@@ -21,6 +21,7 @@ function selectModel(message: string, context: Record<string, unknown>): ModelPr
   // Anthropic: análisis complejos, siniestros, underwriting, reportes
   if (
     perfil.includes('_claims') || perfil.includes('_uw') || perfil.includes('financiero') ||
+    perfil.includes('aseguradora_core') || perfil.includes('_core') ||
     msg.includes('analiza') || msg.includes('compara') || msg.includes('riesgo') ||
     msg.includes('dictamen') || msg.includes('recomendación') || msg.includes('estrategia')
   ) return 'anthropic'
@@ -70,6 +71,7 @@ function buildSystemPrompt(context: Record<string, unknown>, externalInfo: strin
   const perfil = (context?.perfil as string) || 'agente'
 
   const perfilInstrucciones: Record<string, string> = {
+    aseguradora_core: 'Eres copiloto corporativo de aseguradora. Priorizas operación de core asegurador: suscripción, administración de pólizas, cobranza, siniestros, SLA de ajustadores, red comercial y reportes exportables.',
     aseguradora_uw: 'Eres experto en suscripción de seguros. Analiza solicitudes, scores de riesgo, expedientes y recomienda decisiones de aprobación/rechazo basadas en los datos del contexto.',
     aseguradora_polizas: 'Eres experto en administración de pólizas. Ayudas con endosos, renovaciones, cancelaciones y seguimiento de cartera.',
     aseguradora_billing: 'Eres experto en cobranza y comisiones de seguros. Analiza primas cobradas, vencidas, comisiones y eficiencia de cobro.',

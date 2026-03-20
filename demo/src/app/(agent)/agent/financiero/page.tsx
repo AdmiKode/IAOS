@@ -1,11 +1,11 @@
 'use client'
-import { useState } from 'react'
-import { TrendingUp, TrendingDown, DollarSign, FileText, Download, Plus, X, CheckCircle, Clock, AlertCircle, BarChart2, PieChart, CreditCard, Receipt, Building2, ChevronRight, Filter, Bell, MessageSquare, Phone, Mail } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { TrendingUp, TrendingDown, DollarSign, FileText, Download, Plus, X, CheckCircle, Clock, AlertCircle, BarChart2, PieChart, CreditCard, Receipt, Building2, ChevronRight, Filter, Bell, MessageSquare, Phone, Mail, Upload, Scan, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { exportCSV } from '@/lib/exportCSV'
 import { MOCK_POLICIES, MOCK_PAYMENTS, MOCK_CHART_DATA } from '@/data/mock'
 
-type Tab = 'resumen' | 'comisiones' | 'cfdi' | 'flujo'
+type Tab = 'resumen' | 'comisiones' | 'cfdi' | 'flujo' | 'documentos'
 
 // ─── MOCK DATA FINANCIERO ────────────────────────────────────────────────────
 const COMISIONES = [
@@ -46,6 +46,40 @@ export default function FinancieroPage() {
   const [newCfdi, setNewCfdi] = useState(false)
   const [recordatorio, setRecordatorio] = useState<typeof MOCK_PAYMENTS[0] | null>(null)
   const [recordatorioEnviado, setRecordatorioEnviado] = useState(false)
+  // OCR / Documentos
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [docFiles, setDocFiles] = useState<{name:string;type:string;size:string;ocr:string;date:string}[]>([
+    { name:'Estado cuenta GNP Mar 2026.pdf', type:'Estado de cuenta', size:'312 KB', ocr:'Abono: $19,876.00 MXN — Comisiones GMM/Auto — Fecha: 05/Mar/2026', date:'2026-03-05' },
+    { name:'Factura AMIS-2026-001.xml',      type:'Factura',          size:'48 KB',  ocr:'RFC: AMIS900101XXX — Cuota anual: $4,200.00 MXN — CFDI: Emitida', date:'2026-01-15' },
+    { name:'Estado cuenta AXA Feb 2026.pdf', type:'Estado de cuenta', size:'284 KB', ocr:'Abono: $14,500.00 MXN — Override Colectivo — Fecha: 20/Feb/2026', date:'2026-02-20' },
+  ])
+  const [ocrPreview, setOcrPreview] = useState<typeof docFiles[0]|null>(null)
+  const [docUploadStep, setDocUploadStep] = useState<'idle'|'scanning'|'done'>('idle')
+  const [manualEntry, setManualEntry] = useState(false)
+  const [mForm, setMForm] = useState({ concepto:'', tipo:'ingreso', monto:'', fecha:'', nota:'' })
+  const [manualList, setManualList] = useState<typeof mForm[]>([])
+
+  function handleDocUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setDocUploadStep('scanning')
+    setTimeout(() => {
+      const size = f.size > 1024*1024 ? `${(f.size/1024/1024).toFixed(1)} MB` : `${Math.round(f.size/1024)} KB`
+      const ocr = f.name.toLowerCase().includes('factura') || f.name.toLowerCase().includes('cfdi')
+        ? `RFC detectado — Monto: $${(Math.random()*20000+2000).toFixed(2)} MXN — CFDI 4.0`
+        : `Depósito/Abono: $${(Math.random()*30000+5000).toFixed(2)} MXN — Fecha detectada: ${new Date().toLocaleDateString('es-MX')}`
+      setDocFiles(prev => [{ name:f.name, type: f.name.endsWith('.xml')?'Factura CFDI':'Estado de cuenta', size, ocr, date: new Date().toLocaleDateString('es-MX') }, ...prev])
+      setDocUploadStep('done')
+      setTimeout(() => setDocUploadStep('idle'), 2000)
+    }, 2200)
+    e.target.value = ''
+  }
+  function saveManual() {
+    if (!mForm.concepto || !mForm.monto) return
+    setManualList(l => [{ ...mForm }, ...l])
+    setMForm({ concepto:'', tipo:'ingreso', monto:'', fecha:'', nota:'' })
+    setManualEntry(false)
+  }
 
   // KPIs
   const ingresosMes = 36850
@@ -66,6 +100,7 @@ export default function FinancieroPage() {
     { id: 'comisiones', label: 'Comisiones', icon: DollarSign },
     { id: 'cfdi', label: 'CFDI / Facturas', icon: Receipt },
     { id: 'flujo', label: 'Flujo de caja', icon: TrendingUp },
+    { id: 'documentos', label: 'Docs / OCR', icon: Upload },
   ]
 
   return (
@@ -395,6 +430,198 @@ export default function FinancieroPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DOCUMENTOS / OCR ─────────────────────────────────────── */}
+      {tab === 'documentos' && (
+        <div className="flex flex-col gap-4">
+          <input ref={fileInputRef} type="file" accept=".pdf,.xml,.jpg,.png,.jpeg" className="hidden" onChange={handleDocUpload} />
+
+          {/* Upload zona */}
+          <div className="bg-[#EFF2F9] rounded-2xl p-6 shadow-[-5px_-5px_12px_#FAFBFF,5px_5px_12px_rgba(22,27,29,0.14)]">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-[11px] text-[#9CA3AF] uppercase tracking-widest mb-0.5">OCR inteligente</p>
+                <p className="text-[15px] font-bold text-[#1A1F2B]">Cargar documentos financieros</p>
+              </div>
+              <button onClick={() => setManualEntry(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold text-[#6B7280] bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.10)] hover:text-[#F7941D] transition-all">
+                <Plus size={13} /> Registro manual
+              </button>
+            </div>
+
+            <button onClick={() => fileInputRef.current?.click()}
+              className="w-full border-2 border-dashed border-[#D1D5DB] rounded-2xl p-10 flex flex-col items-center gap-3 hover:border-[#F7941D] transition-colors group">
+              {docUploadStep === 'scanning' ? (
+                <>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background:'linear-gradient(135deg,#F7941D15,#e0801908)' }}>
+                    <Scan size={24} className="text-[#F7941D] animate-pulse" />
+                  </div>
+                  <p className="text-[13px] text-[#F7941D] font-semibold">Leyendo documento con OCR...</p>
+                  <p className="text-[11px] text-[#9CA3AF]">Extrayendo datos automáticamente</p>
+                </>
+              ) : docUploadStep === 'done' ? (
+                <>
+                  <CheckCircle size={28} className="text-[#69A481]" />
+                  <p className="text-[13px] text-[#69A481] font-semibold">Documento procesado</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[#F7941D]/10 group-hover:bg-[#F7941D]/20 transition-all">
+                    <Upload size={22} className="text-[#F7941D]" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[13px] font-semibold text-[#1A1F2B]">Arrastra o haz clic para subir</p>
+                    <p className="text-[11px] text-[#9CA3AF] mt-0.5">Estados de cuenta · Facturas CFDI · Recibos · XML · PDF · Imagen</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-[#B5BFC6]">
+                    <Scan size={11} /> XORIA extrae montos, fechas y conceptos automáticamente
+                  </div>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Lista docs subidos */}
+          <div className="bg-[#EFF2F9] rounded-2xl shadow-[-5px_-5px_12px_#FAFBFF,5px_5px_12px_rgba(22,27,29,0.14)] overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#D1D5DB]/20">
+              <p className="text-[13px] font-bold text-[#1A1F2B]">Documentos procesados ({docFiles.length})</p>
+              <button onClick={() => exportCSV(docFiles.map(d=>({Nombre:d.name,Tipo:d.type,Tamaño:d.size,OCR:d.ocr,Fecha:d.date})),'documentos-financieros.csv')}
+                className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] hover:text-[#F7941D] transition-colors">
+                <Download size={12} /> Exportar lista
+              </button>
+            </div>
+            <div className="flex flex-col divide-y divide-[#D1D5DB]/15">
+              {docFiles.map((d,i)=>(
+                <div key={i} className="flex items-start gap-3 px-5 py-4 hover:bg-[#F7941D]/4 transition-colors">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: d.type.includes('Factura')?'#F7941D15':'#69A48115' }}>
+                    <FileText size={15} style={{ color: d.type.includes('Factura')?'#F7941D':'#69A481' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-semibold text-[#1A1F2B] truncate">{d.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: d.type.includes('Factura')?'#F7941D15':'#69A48115', color: d.type.includes('Factura')?'#F7941D':'#69A481' }}>{d.type}</span>
+                      <span className="text-[10px] text-[#B5BFC6]">{d.size} · {d.date}</span>
+                    </div>
+                    <div className="mt-1.5 bg-[#EFF2F9] rounded-lg px-2.5 py-1.5 shadow-[inset_-1px_-1px_3px_#FAFBFF,inset_1px_1px_3px_rgba(22,27,29,0.08)] border border-[#F7941D]/10">
+                      <p className="text-[10px] text-[#1A1F2B] leading-relaxed"><span className="text-[#F7941D] font-semibold">OCR: </span>{d.ocr}</p>
+                    </div>
+                  </div>
+                  <button onClick={()=>setOcrPreview(d)} className="w-7 h-7 flex items-center justify-center rounded-lg shrink-0 text-[#9CA3AF] hover:text-[#F7941D] bg-[#EFF2F9] shadow-[-1px_-1px_3px_#FAFBFF,1px_1px_3px_rgba(22,27,29,0.10)] transition-colors">
+                    <Eye size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Registros manuales */}
+          {manualList.length > 0 && (
+            <div className="bg-[#EFF2F9] rounded-2xl shadow-[-5px_-5px_12px_#FAFBFF,5px_5px_12px_rgba(22,27,29,0.14)] overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-[#D1D5DB]/20">
+                <p className="text-[13px] font-bold text-[#1A1F2B]">Registros manuales ({manualList.length})</p>
+              </div>
+              <div className="flex flex-col divide-y divide-[#D1D5DB]/15">
+                {manualList.map((m,i)=>(
+                  <div key={i} className="flex items-center gap-3 px-5 py-3.5">
+                    <div className={cn('w-2 h-2 rounded-full shrink-0', m.tipo==='ingreso'?'bg-[#69A481]':'bg-[#7C1F31]')} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-semibold text-[#1A1F2B]">{m.concepto}</p>
+                      <p className="text-[10px] text-[#9CA3AF]">{m.fecha} {m.nota && `· ${m.nota}`}</p>
+                    </div>
+                    <p className="text-[13px] font-bold shrink-0" style={{ color: m.tipo==='ingreso'?'#69A481':'#7C1F31' }}>
+                      {m.tipo==='ingreso'?'+':'-'}${Number(m.monto).toLocaleString('es-MX')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── MODAL OCR PREVIEW ── */}
+      {ocrPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter:'blur(12px)', background:'rgba(26,31,43,0.45)' }} onClick={()=>setOcrPreview(null)}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-md p-6 shadow-[-20px_-20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.28)] flex flex-col gap-4" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-[#F7941D] font-bold tracking-widest uppercase">OCR · Extracción</p>
+                <p className="text-[14px] font-bold text-[#1A1F2B] mt-0.5 truncate max-w-[280px]">{ocrPreview.name}</p>
+              </div>
+              <button onClick={()=>setOcrPreview(null)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#7C1F31]">
+                <X size={15} />
+              </button>
+            </div>
+            <div className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[inset_-3px_-3px_7px_#FAFBFF,inset_3px_3px_7px_rgba(22,27,29,0.10)] border border-[#F7941D]/15">
+              <p className="text-[11px] text-[#9CA3AF] uppercase tracking-widest mb-2">Datos extraídos por OCR</p>
+              <p className="text-[12px] text-[#1A1F2B] leading-relaxed">{ocrPreview.ocr}</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {[['Tipo','Nombre'],['Tamaño','Fecha']].map((pair,pi)=>(
+                <div key={pi} className="flex gap-3">
+                  {pair.map(k=>(
+                    <div key={k} className="flex-1 bg-[#EFF2F9] rounded-xl p-3 shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.08)]">
+                      <p className="text-[10px] text-[#9CA3AF]">{k}</p>
+                      <p className="text-[11px] font-semibold text-[#1A1F2B] mt-0.5 truncate">
+                        {k==='Tipo'?ocrPreview.type:k==='Nombre'?ocrPreview.name:k==='Tamaño'?ocrPreview.size:ocrPreview.date}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <button onClick={()=>setOcrPreview(null)} className="py-3 rounded-2xl text-white font-bold text-[13px] transition-all hover:scale-[1.02]"
+              style={{ background:'linear-gradient(135deg,#F7941D,#e08019)', boxShadow:'0 6px 24px rgba(247,148,29,0.40)' }}>
+              Listo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL REGISTRO MANUAL ── */}
+      {manualEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter:'blur(12px)', background:'rgba(26,31,43,0.45)' }}>
+          <div className="bg-[#EFF2F9] rounded-3xl w-full max-w-sm p-6 shadow-[-20px_-20px_60px_#FAFBFF,20px_20px_60px_rgba(22,27,29,0.28)] flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-[#F7941D] font-bold tracking-widest uppercase">Finanzas</p>
+                <p className="text-[14px] font-bold text-[#1A1F2B]">Registro manual</p>
+              </div>
+              <button onClick={()=>setManualEntry(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.12)] text-[#9CA3AF] hover:text-[#7C1F31]">
+                <X size={15} />
+              </button>
+            </div>
+            {/* Tipo */}
+            <div className="flex gap-2">
+              {(['ingreso','gasto'] as const).map(t=>(
+                <button key={t} onClick={()=>setMForm(f=>({...f,tipo:t}))}
+                  className={cn('flex-1 py-2.5 rounded-xl text-[12px] font-bold capitalize transition-all border',
+                    mForm.tipo===t?'text-white':'text-[#6B7280] bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.10)]')}
+                  style={mForm.tipo===t?{background: t==='ingreso'?'linear-gradient(135deg,#69A481,#4a7a5d)':'linear-gradient(135deg,#7C1F31,#5a1624)', borderColor:'transparent'}:{borderColor:'transparent'}}>
+                  {t}
+                </button>
+              ))}
+            </div>
+            {[
+              {label:'Concepto',key:'concepto',placeholder:'Comisión GNP, Pago renta, Capacitación...'},
+              {label:'Monto (MXN)',key:'monto',placeholder:'5,000'},
+              {label:'Fecha',key:'fecha',placeholder:'2026-03-05'},
+              {label:'Nota opcional',key:'nota',placeholder:'Referencia, número de recibo...'},
+            ].map(f=>(
+              <div key={f.key}>
+                <p className="text-[11px] text-[#6B7280] uppercase tracking-widest mb-1">{f.label}</p>
+                <input value={mForm[f.key as keyof typeof mForm]} onChange={e=>setMForm(m=>({...m,[f.key]:e.target.value}))} placeholder={f.placeholder}
+                  className="w-full bg-white/30 border border-white/50 rounded-xl px-3 py-2.5 text-[12px] text-[#1A1F2B] placeholder:text-[#B5BFC6] outline-none focus:border-[#F7941D]/60 shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)]" />
+              </div>
+            ))}
+            <button onClick={saveManual} disabled={!mForm.concepto||!mForm.monto}
+              className={cn('py-3 rounded-2xl text-white font-bold text-[13px] transition-all', (mForm.concepto&&mForm.monto)?'hover:scale-[1.02]':'opacity-40 cursor-not-allowed')}
+              style={(mForm.concepto&&mForm.monto)?{background:'linear-gradient(135deg,#F7941D,#e08019)',boxShadow:'0 6px 24px rgba(247,148,29,0.40)'}:{}}>
+              Guardar registro
+            </button>
           </div>
         </div>
       )}
