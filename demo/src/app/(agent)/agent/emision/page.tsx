@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Check, ChevronRight, Car, Heart, Home, Briefcase, Plane, Shield, Users, Zap } from "lucide-react";
+import { Check, ChevronRight, Car, Heart, Home, Briefcase, Plane, Shield, Users, Zap, X, Download, Printer, FileText } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 const RAMOS = [
   { id: "auto", label: "Automóvil", icon: Car, color: "#F7941D" },
@@ -28,12 +29,15 @@ const STEPS = ["Ramo", "Aseguradora", "Datos del asegurado", "Cotización"];
 type FormData = { nombre: string; email: string; telefono: string; rfc: string; valor: string };
 
 export default function EmisionPage() {
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [selectedRamo, setSelectedRamo] = useState<string | null>(null);
   const [selectedAseg, setSelectedAseg] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>({ nombre: "", email: "", telefono: "", rfc: "", valor: "" });
   const [emitida, setEmitida] = useState(false);
-  const [polizaNum] = useState(() => `AUTO-2024-${Math.floor(Math.random() * 9000) + 1000}`);
+  const [verPoliza, setVerPoliza] = useState(false);
+  const [polizaNum] = useState(() => `AUTO-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`);
+  const polizaRef = useRef<HTMLDivElement>(null);
 
   const canNext = [
     () => selectedRamo !== null,
@@ -213,9 +217,218 @@ export default function EmisionPage() {
               className="px-6 py-3 rounded-xl text-sm font-semibold text-[#6B7280] neu-sm hover:text-[#1A1F2B] transition-all">
               Nueva cotización
             </button>
-            <button className="px-6 py-3 rounded-xl bg-[#F7941D] text-white text-sm font-semibold shadow-[0_4px_12px_rgba(247,148,29,0.35)] hover:bg-[#e08019] transition-all">
-              Ver póliza
+            <button onClick={() => setVerPoliza(true)}
+              className="px-6 py-3 rounded-xl bg-[#F7941D] text-white text-sm font-semibold shadow-[0_4px_12px_rgba(247,148,29,0.35)] hover:bg-[#e08019] transition-all flex items-center gap-2">
+              <FileText size={14} /> Ver póliza
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CARÁTULA DE PÓLIZA ── */}
+      {verPoliza && (
+        <div className="fixed inset-0 z-[999] flex items-start justify-center p-4 overflow-y-auto"
+          style={{ background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(6px)' }}>
+          <div className="relative w-full max-w-2xl my-4">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between bg-[#1A1F2B] rounded-t-2xl px-5 py-3">
+              <div className="flex items-center gap-2">
+                <FileText size={15} className="text-[#F7941D]" />
+                <span className="text-white text-[13px] font-semibold">Carátula de Póliza — {polizaNum}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                  <Printer size={13} /> Imprimir
+                </button>
+                <button
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                  <Download size={13} /> Descargar
+                </button>
+                <button onClick={() => setVerPoliza(false)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors ml-2">
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+
+            {/* Documento */}
+            <div ref={polizaRef} className="bg-white rounded-b-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
+
+              {/* Encabezado oficial */}
+              <div className="px-8 pt-8 pb-5 border-b-4 border-[#1A1F2B]">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-10 h-10 rounded-lg bg-[#1A1F2B] flex items-center justify-center">
+                        <Shield size={20} className="text-[#F7941D]" />
+                      </div>
+                      <div>
+                        <p className="text-[#1A1F2B] font-black text-[16px] leading-tight">{selectedAsegData?.name || 'GNP Seguros'}</p>
+                        <p className="text-[#6B7280] text-[9px] tracking-wider uppercase">Institución de Seguros autorizada por la CNSF</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[#9CA3AF] text-[9px] uppercase tracking-widest">No. de póliza</p>
+                    <p className="text-[#F7941D] text-[22px] font-black font-mono leading-tight">{polizaNum}</p>
+                    <p className="text-[#9CA3AF] text-[9px]">Emitida: {new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' })}</p>
+                  </div>
+                </div>
+                <div className="mt-4 py-2 px-4 bg-[#1A1F2B] rounded-xl text-center">
+                  <p className="text-white text-[13px] font-bold tracking-wider uppercase">
+                    PÓLIZA DE SEGURO DE {selectedRamoData?.label?.toUpperCase() || 'AUTOMÓVIL'}
+                  </p>
+                  <p className="text-[#F7941D] text-[10px] tracking-widest mt-0.5">
+                    CARÁTULA — DOCUMENTO INFORMATIVO OFICIAL
+                  </p>
+                </div>
+              </div>
+
+              {/* Datos del contratante */}
+              <div className="px-8 py-5 border-b border-[#E5E7EB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#1A1F2B] flex items-center justify-center text-white text-[8px]">1</span>
+                  Datos del contratante / asegurado
+                </p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  {[
+                    { label: 'Nombre completo', val: form.nombre || 'Carlos Alberto Pérez Gómez' },
+                    { label: 'R.F.C.', val: form.rfc || 'PEGC880512HDF' },
+                    { label: 'Correo electrónico', val: form.email || 'asegurado@email.com' },
+                    { label: 'Teléfono', val: form.telefono || '55 1234 5678' },
+                    { label: 'Domicilio', val: 'Av. Insurgentes Sur 1234, Col. Del Valle, CDMX' },
+                    { label: 'C.P.', val: '03100' },
+                  ].map(item => (
+                    <div key={item.label}>
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[12px] text-[#1A1F2B] font-semibold border-b border-dashed border-[#E5E7EB] pb-0.5">{item.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Vigencia */}
+              <div className="px-8 py-4 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#1A1F2B] flex items-center justify-center text-white text-[8px]">2</span>
+                  Vigencia y prima
+                </p>
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: 'Inicio de vigencia', val: new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' 12:00 hrs' },
+                    { label: 'Fin de vigencia', val: new Date(Date.now() + 365*24*60*60*1000).toLocaleDateString('es-MX', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' 12:00 hrs' },
+                    { label: 'Forma de pago', val: 'Anual' },
+                    { label: 'Prima neta', val: selectedAsegData?.prima ? `${selectedAsegData.prima} / mes` : '$1,840 / mes' },
+                    { label: 'Derecho de póliza', val: '$184.00' },
+                    { label: 'Prima total anual', val: selectedAsegData ? `$${(parseInt(selectedAsegData.prima.replace(/\D/g,'')) * 12 + 184).toLocaleString('es-MX')}` : '$22,264.00' },
+                  ].map(item => (
+                    <div key={item.label} className="bg-white rounded-xl p-3 border border-[#E5E7EB]">
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[12px] text-[#1A1F2B] font-bold mt-0.5">{item.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Coberturas */}
+              <div className="px-8 py-5 border-b border-[#E5E7EB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#1A1F2B] flex items-center justify-center text-white text-[8px]">3</span>
+                  Coberturas contratadas
+                </p>
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="bg-[#1A1F2B] text-white">
+                      <th className="text-left px-3 py-2 text-[9px] uppercase tracking-wider font-semibold">Cobertura</th>
+                      <th className="text-center px-3 py-2 text-[9px] uppercase tracking-wider font-semibold">Suma asegurada</th>
+                      <th className="text-center px-3 py-2 text-[9px] uppercase tracking-wider font-semibold">Deducible</th>
+                      <th className="text-center px-3 py-2 text-[9px] uppercase tracking-wider font-semibold">Coaseguro</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { cob: 'Daños materiales', sa: 'Valor comercial', ded: '5% min. $3,000', co: 'N/A' },
+                      { cob: 'Robo total', sa: 'Valor comercial', ded: '10%', co: 'N/A' },
+                      { cob: 'Responsabilidad civil', sa: '$3,000,000', ded: '$0', co: 'N/A' },
+                      { cob: 'Gastos médicos ocupantes', sa: '$200,000 por persona', ded: '$0', co: 'N/A' },
+                      { cob: 'Asistencia vial 24hrs', sa: 'Incluida', ded: '$0', co: 'N/A' },
+                      { cob: 'Auto sustituto', sa: '15 días / año', ded: '$0', co: 'N/A' },
+                    ].map((row, i) => (
+                      <tr key={row.cob} className={i % 2 === 0 ? 'bg-white' : 'bg-[#F9FAFB]'}>
+                        <td className="px-3 py-2 text-[#1A1F2B] font-medium">{row.cob}</td>
+                        <td className="px-3 py-2 text-center text-[#6B7280]">{row.sa}</td>
+                        <td className="px-3 py-2 text-center text-[#6B7280]">{row.ded}</td>
+                        <td className="px-3 py-2 text-center text-[#6B7280]">{row.co}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Agente y datos adicionales */}
+              <div className="px-8 py-5 border-b border-[#E5E7EB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#1A1F2B] flex items-center justify-center text-white text-[8px]">4</span>
+                  Datos del agente y canal
+                </p>
+                <div className="grid grid-cols-3 gap-x-8 gap-y-2">
+                  {[
+                    { label: 'Nombre del agente', val: user?.name || 'Carlos Mendoza' },
+                    { label: 'Clave CNSF', val: 'CNSF-MX-2019-04521' },
+                    { label: 'Organización', val: user?.agency || 'Seguros Premier' },
+                    { label: 'Teléfono agente', val: '55 9876 5432' },
+                    { label: 'Correo agente', val: 'agente@demo.com' },
+                    { label: 'Fecha de emisión', val: new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' }) },
+                  ].map(item => (
+                    <div key={item.label}>
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[11px] text-[#1A1F2B] font-semibold border-b border-dashed border-[#E5E7EB] pb-0.5">{item.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Leyendas legales */}
+              <div className="px-8 py-5 bg-[#F9FAFB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#6B7280] flex items-center justify-center text-white text-[8px]">!</span>
+                  Notas y leyendas legales
+                </p>
+                <ul className="text-[9px] text-[#6B7280] leading-relaxed list-disc list-inside space-y-1">
+                  <li>Esta carátula forma parte integral de la póliza y debe conservarse durante toda la vigencia.</li>
+                  <li>La presente póliza se expide conforme a las condiciones generales registradas ante la CNSF.</li>
+                  <li>En caso de siniestro, comuníquese a la línea de atención: 800-123-4567 disponible 24/7.</li>
+                  <li>El pago de la prima deberá realizarse en las fechas indicadas para mantener la cobertura vigente.</li>
+                  <li>Este documento fue generado electrónicamente y tiene plena validez conforme a la LFEA.</li>
+                  <li>Documento generado por Insurance Agent OS · livekode.online · {new Date().toLocaleString('es-MX')}</li>
+                </ul>
+              </div>
+
+              {/* Firmas */}
+              <div className="px-8 py-6 border-t-2 border-[#1A1F2B]">
+                <div className="grid grid-cols-3 gap-8 text-center">
+                  {['Firma del contratante', 'Firma del agente', 'Sello de la compañía'].map(f => (
+                    <div key={f}>
+                      <div className="h-12 border-b-2 border-[#1A1F2B] mb-1 flex items-end justify-center pb-1">
+                        {f === 'Firma del agente' && (
+                          <p className="text-[10px] text-[#9CA3AF] italic">Firma digital verificada ✓</p>
+                        )}
+                        {f === 'Sello de la compañía' && (
+                          <div className="w-12 h-12 rounded-full border-2 border-dashed border-[#9CA3AF] flex items-center justify-center mb-1">
+                            <Shield size={16} className="text-[#9CA3AF]" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{f}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-[9px] text-[#B5BFC6] mt-5">
+                  {selectedAsegData?.name || 'GNP Seguros'} · Institución de Seguros · Autorización CNSF · Póliza {polizaNum}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

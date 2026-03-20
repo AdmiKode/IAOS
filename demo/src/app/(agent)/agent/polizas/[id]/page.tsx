@@ -6,9 +6,10 @@ import { MOCK_POLICIES, MOCK_PAYMENTS } from "@/data/mock";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, FileText, CreditCard, Phone, Download,
-  CheckCircle, Clock, AlertTriangle, Shield
+  CheckCircle, Clock, AlertTriangle, Shield, X, Printer
 } from "lucide-react";
 import { ClientLink } from "@/components/ui";
+import { useAuth } from "@/lib/auth-context";
 
 const TABS = ["Resumen", "Documentos", "Pagos", "Contacto"];
 
@@ -40,7 +41,9 @@ const TIMELINE_ICONS = {
 export default function PolizaDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
+  const [verCaratula, setVerCaratula] = useState(false);
 
   const policy = MOCK_POLICIES.find(p => p.id === params.id) || MOCK_POLICIES[0];
   const payments = MOCK_PAYMENTS.filter(p => p.policyId === policy.id);
@@ -163,10 +166,16 @@ export default function PolizaDetailPage() {
                   <p className="text-[#1A1F2B] text-sm font-semibold truncate">{d.name}</p>
                   <p className="text-[#9CA3AF] text-xs">{d.type} — {d.size}</p>
                 </div>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#F7941D] neu-sm hover:text-[#e08019] transition-colors">
-                  <Download size={12} />
-                  Descargar
-                </button>
+                {d.name === 'Carátula de póliza' ? (
+                  <button onClick={() => setVerCaratula(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#F7941D] neu-sm hover:text-[#e08019] transition-colors">
+                    <FileText size={12} /> Ver
+                  </button>
+                ) : (
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#F7941D] neu-sm hover:text-[#e08019] transition-colors">
+                    <Download size={12} /> Descargar
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -238,6 +247,173 @@ export default function PolizaDetailPage() {
             <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl neu-sm text-[#6B7280] text-sm font-semibold hover:text-[#1A1F2B] transition-all">
               Enviar mensaje
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CARÁTULA DE PÓLIZA ── */}
+      {verCaratula && (
+        <div className="fixed inset-0 z-[999] flex items-start justify-center p-4 overflow-y-auto"
+          style={{ background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(6px)' }}>
+          <div className="relative w-full max-w-2xl my-4">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between bg-[#1A1F2B] rounded-t-2xl px-5 py-3">
+              <div className="flex items-center gap-2">
+                <FileText size={15} className="text-[#F7941D]" />
+                <span className="text-white text-[13px] font-semibold">Carátula — {policy.policyNumber}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                  <Printer size={13} /> Imprimir
+                </button>
+                <button onClick={() => setVerCaratula(false)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors ml-2">
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+            <div className="bg-white rounded-b-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
+              {/* Encabezado */}
+              <div className="px-8 pt-8 pb-5 border-b-4 border-[#1A1F2B]">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-lg bg-[#1A1F2B] flex items-center justify-center">
+                      <Shield size={20} className="text-[#F7941D]" />
+                    </div>
+                    <div>
+                      <p className="text-[#1A1F2B] font-black text-[16px] leading-tight">{policy.insurer}</p>
+                      <p className="text-[#6B7280] text-[9px] tracking-wider uppercase">Institución de Seguros autorizada por la CNSF</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[#9CA3AF] text-[9px] uppercase tracking-widest">No. de póliza</p>
+                    <p className="text-[#F7941D] text-[22px] font-black font-mono leading-tight">{policy.policyNumber}</p>
+                    <p className="text-[#9CA3AF] text-[9px]">Inicio: {policy.startDate}</p>
+                  </div>
+                </div>
+                <div className="mt-4 py-2 px-4 bg-[#1A1F2B] rounded-xl text-center">
+                  <p className="text-white text-[13px] font-bold tracking-wider uppercase">PÓLIZA DE SEGURO — {policy.type.toUpperCase()}</p>
+                  <p className="text-[#F7941D] text-[10px] tracking-widest mt-0.5">CARÁTULA — DOCUMENTO INFORMATIVO OFICIAL</p>
+                </div>
+              </div>
+              {/* Contratante */}
+              <div className="px-8 py-5 border-b border-[#E5E7EB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#1A1F2B] flex items-center justify-center text-white text-[8px]">1</span>
+                  Datos del contratante / asegurado
+                </p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  {[
+                    { label: 'Nombre completo', val: policy.clientName },
+                    { label: 'R.F.C.', val: 'PEGC880512HDF' },
+                    { label: 'Correo electrónico', val: 'asegurado@email.com' },
+                    { label: 'Teléfono', val: '55 1234 5678' },
+                    { label: 'Domicilio', val: 'Av. Insurgentes Sur 1234, Col. Del Valle, CDMX' },
+                    { label: 'C.P.', val: '03100' },
+                  ].map(item => (
+                    <div key={item.label}>
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[12px] text-[#1A1F2B] font-semibold border-b border-dashed border-[#E5E7EB] pb-0.5">{item.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Vigencia */}
+              <div className="px-8 py-4 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#1A1F2B] flex items-center justify-center text-white text-[8px]">2</span>
+                  Vigencia y prima
+                </p>
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: 'Inicio de vigencia', val: policy.startDate + ' 12:00 hrs' },
+                    { label: 'Fin de vigencia', val: policy.endDate + ' 12:00 hrs' },
+                    { label: 'Forma de pago', val: 'Mensual' },
+                    { label: 'Prima mensual', val: policy.premium },
+                    { label: 'Derecho de póliza', val: '$184.00' },
+                    { label: 'Prima anual aprox.', val: policy.premium },
+                  ].map(item => (
+                    <div key={item.label} className="bg-white rounded-xl p-3 border border-[#E5E7EB]">
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[12px] text-[#1A1F2B] font-bold mt-0.5">{item.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Coberturas */}
+              <div className="px-8 py-5 border-b border-[#E5E7EB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#1A1F2B] flex items-center justify-center text-white text-[8px]">3</span>
+                  Coberturas contratadas
+                </p>
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="bg-[#1A1F2B] text-white">
+                      <th className="text-left px-3 py-2 text-[9px] uppercase tracking-wider font-semibold">Cobertura</th>
+                      <th className="text-center px-3 py-2 text-[9px] uppercase tracking-wider font-semibold">Suma asegurada</th>
+                      <th className="text-center px-3 py-2 text-[9px] uppercase tracking-wider font-semibold">Deducible</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { cob: 'Cobertura principal', sa: policy.coverage || 'Amplia', ded: '5% min. $3,000' },
+                      { cob: 'Responsabilidad civil', sa: '$3,000,000', ded: '$0' },
+                      { cob: 'Gastos médicos', sa: '$200,000 por persona', ded: '$0' },
+                      { cob: 'Asistencia 24hrs', sa: 'Incluida', ded: '$0' },
+                    ].map((row, i) => (
+                      <tr key={row.cob} className={i % 2 === 0 ? 'bg-white' : 'bg-[#F9FAFB]'}>
+                        <td className="px-3 py-2 text-[#1A1F2B] font-medium">{row.cob}</td>
+                        <td className="px-3 py-2 text-center text-[#6B7280]">{row.sa}</td>
+                        <td className="px-3 py-2 text-center text-[#6B7280]">{row.ded}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Agente */}
+              <div className="px-8 py-5 border-b border-[#E5E7EB]">
+                <p className="text-[10px] font-black text-[#1A1F2B] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#1A1F2B] flex items-center justify-center text-white text-[8px]">4</span>
+                  Datos del agente
+                </p>
+                <div className="grid grid-cols-3 gap-x-8 gap-y-2">
+                  {[
+                    { label: 'Nombre del agente', val: user?.name || 'Carlos Mendoza' },
+                    { label: 'Clave CNSF', val: 'CNSF-MX-2019-04521' },
+                    { label: 'Organización', val: user?.agency || 'Seguros Premier' },
+                  ].map(item => (
+                    <div key={item.label}>
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[11px] text-[#1A1F2B] font-semibold border-b border-dashed border-[#E5E7EB] pb-0.5">{item.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Leyendas */}
+              <div className="px-8 py-4 bg-[#F9FAFB]">
+                <ul className="text-[9px] text-[#6B7280] leading-relaxed list-disc list-inside space-y-1">
+                  <li>Esta carátula forma parte integral de la póliza y debe conservarse durante toda la vigencia.</li>
+                  <li>La presente póliza se expide conforme a las condiciones generales registradas ante la CNSF.</li>
+                  <li>En caso de siniestro, comuníquese a la línea 800-123-4567 disponible 24/7.</li>
+                  <li>Documento generado por Insurance Agent OS · livekode.online</li>
+                </ul>
+              </div>
+              {/* Firmas */}
+              <div className="px-8 py-6 border-t-2 border-[#1A1F2B]">
+                <div className="grid grid-cols-3 gap-8 text-center">
+                  {['Firma del contratante', 'Firma del agente', 'Sello de la compañía'].map(f => (
+                    <div key={f}>
+                      <div className="h-10 border-b-2 border-[#1A1F2B] mb-1" />
+                      <p className="text-[9px] text-[#9CA3AF] uppercase tracking-wider">{f}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-[9px] text-[#B5BFC6] mt-4">
+                  {policy.insurer} · Póliza {policy.policyNumber} · Insurance Agent OS
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
