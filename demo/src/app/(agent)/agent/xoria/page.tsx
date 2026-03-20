@@ -386,19 +386,17 @@ export default function XoriaPage() {
               </div>
 
               <div className={cn(
-                'rounded-2xl px-4 py-3 text-[13px] leading-relaxed',
+                'rounded-2xl px-4 py-3 text-[13px] leading-relaxed whitespace-pre-wrap',
                 msg.role === 'assistant'
                   ? 'bg-white/40 backdrop-blur-sm border border-white/50 text-[#1A1F2B] shadow-[0_4px_16px_rgba(22,27,29,0.08)] rounded-tl-sm'
                   : 'bg-[#EFF2F9] text-[#1A1F2B] shadow-[-4px_-4px_8px_#FAFBFF,4px_4px_8px_rgba(22,27,29,0.15)] rounded-tr-sm'
               )}>
-                <span dangerouslySetInnerHTML={{ __html: msg.content
-                  .replace(/&/g, '&amp;')
-                  .replace(/</g, '&lt;')
-                  .replace(/>/g, '&gt;')
-                  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                  .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                  .replace(/\n/g, '<br/>')
-                }} />
+                {msg.content
+                  .replace(/\*\*(.+?)\*\*/g, '$1')
+                  .replace(/\*(.+?)\*/g, '$1')
+                  .replace(/#{1,3} (.+)/g, '$1')
+                  .replace(/`(.+?)`/g, '$1')
+                }
                 <p className="text-[10px] text-[#9CA3AF] mt-1.5">
                   {new Date(msg.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                 </p>

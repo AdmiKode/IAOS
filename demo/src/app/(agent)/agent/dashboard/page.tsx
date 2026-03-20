@@ -336,20 +336,25 @@ function CarrierCoreDashboard({ greeting, name, agency }: { greeting: string; na
       {/* KPI resumen */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: 'Suscripciones pendientes', val: '3', color: '#F7941D', icon: FileText },
-          { label: 'Pólizas activas',          val: '8', color: '#69A481', icon: CreditCard },
-          { label: 'Primas por cobrar',        val: '$42,225', color: '#3B82F6', icon: BarChart3 },
-          { label: 'Siniestros abiertos',      val: '2', color: '#7C1F31', icon: AlertTriangle },
+          { label: 'Suscripciones pendientes', val: '3', color: '#F7941D', icon: FileText, href: '/agent/aseguradora/underwriting' },
+          { label: 'Pólizas activas',          val: '8', color: '#69A481', icon: CreditCard, href: '/agent/aseguradora/polizas' },
+          { label: 'Primas por cobrar',        val: '$42,225', color: '#3B82F6', icon: BarChart3, href: '/agent/aseguradora/billing' },
+          { label: 'Siniestros abiertos',      val: '2', color: '#7C1F31', icon: AlertTriangle, href: '/agent/aseguradora/siniestros' },
         ].map(k => {
           const KIcon = k.icon
           return (
-            <div key={k.label} className="bg-[#EFF2F9] rounded-2xl px-5 py-4 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.14)] flex flex-col gap-2">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: k.color + '18' }}>
-                <KIcon size={15} style={{ color: k.color }} />
+            <Link key={k.label} href={k.href}>
+              <div className="bg-[#EFF2F9] rounded-2xl px-5 py-4 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.14)] flex flex-col gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.99] transition-transform duration-150 group">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: k.color + '18' }}>
+                    <KIcon size={15} style={{ color: k.color }} />
+                  </div>
+                  <ChevronRight size={11} className="text-[#D1D5DB] group-hover:text-[#F7941D] transition-colors" />
+                </div>
+                <p className="text-[22px] font-bold leading-none" style={{ color: k.color }}>{k.val}</p>
+                <p className="text-[11px] text-[#9CA3AF] leading-tight">{k.label}</p>
               </div>
-              <p className="text-[22px] font-bold leading-none" style={{ color: k.color }}>{k.val}</p>
-              <p className="text-[11px] text-[#9CA3AF] leading-tight">{k.label}</p>
-            </div>
+            </Link>
           )
         })}
       </div>
@@ -444,6 +449,15 @@ function BrokerDashboard({ greeting, role, name, agency }: { greeting: string; r
   const isBroker = role === 'broker'
   const sortedAgentes = [...agentes].sort((a, b) => b.primaTotal - a.primaTotal)
 
+  const BROKER_KPI_LINKS = [
+    '/agent/polizas',
+    '/agent/cobranza',
+    '/agent/financiero',
+    '/agent/pipeline',
+    '/agent/reportes',
+    '/agent/equipo',
+  ]
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
@@ -464,24 +478,30 @@ function BrokerDashboard({ greeting, role, name, agency }: { greeting: string; r
 
       {/* KPIs consolidados */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {BROKER_KPIS.map(kpi => {
+        {BROKER_KPIS.map((kpi, idx) => {
           const Icon = kpi.icon
+          const href = BROKER_KPI_LINKS[idx] || '/agent/reportes'
           return (
-            <div key={kpi.label}
-              className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-8px_-8px_18px_#FAFBFF,8px_8px_18px_rgba(22,27,29,0.18)] flex flex-col gap-2">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-[10px] text-[#9CA3AF] tracking-widest uppercase leading-tight line-clamp-2 flex-1 min-w-0">{kpi.label}</p>
-                <span className={cn('flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-lg shrink-0',
-                  kpi.up ? 'text-[#69A481] bg-[#69A481]/12' : 'text-[#7C1F31] bg-[#7C1F31]/12')}>
-                  {kpi.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                  <span className="whitespace-nowrap">{kpi.change}</span>
-                </span>
+            <Link key={kpi.label} href={href}>
+              <div
+                className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-8px_-8px_18px_#FAFBFF,8px_8px_18px_rgba(22,27,29,0.18)] flex flex-col gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.99] transition-transform duration-150 group">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-[10px] text-[#9CA3AF] tracking-widest uppercase leading-tight line-clamp-2 flex-1 min-w-0">{kpi.label}</p>
+                  <span className={cn('flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-lg shrink-0',
+                    kpi.up ? 'text-[#69A481] bg-[#69A481]/12' : 'text-[#7C1F31] bg-[#7C1F31]/12')}>
+                    {kpi.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                    <span className="whitespace-nowrap">{kpi.change}</span>
+                  </span>
+                </div>
+                <p className="text-[20px] text-[#1A1F2B] leading-none truncate">{kpi.value}</p>
+                <div className="flex items-center justify-between">
+                  <div className="w-7 h-7 rounded-xl bg-[#F7941D]/10 flex items-center justify-center">
+                    <Icon size={14} className="text-[#F7941D]" />
+                  </div>
+                  <ChevronRight size={11} className="text-[#D1D5DB] group-hover:text-[#F7941D] transition-colors" />
+                </div>
               </div>
-              <p className="text-[20px] text-[#1A1F2B] leading-none truncate">{kpi.value}</p>
-              <div className="w-7 h-7 rounded-xl bg-[#F7941D]/10 flex items-center justify-center self-end">
-                <Icon size={14} className="text-[#F7941D]" />
-              </div>
-            </div>
+            </Link>
           )
         })}
       </div>

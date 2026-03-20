@@ -1,13 +1,18 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, PhoneCall, AlertTriangle } from 'lucide-react'
+import { Search, PhoneCall, AlertTriangle, TrendingUp } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import {
   adjusterById,
   claimsCases,
   claimsStatusLabel,
   ClaimStatus,
+  riskScores,
+  fraudAlerts,
+  underwritingCases,
+  riskLevelLabel,
+  fraudLevelLabel,
 } from '@/data/carrier-core'
 import { AdjusterRealtimeMap } from '@/components/claims/AdjusterRealtimeMap'
 import { Panel, StatusBadge } from '@/components/insurance/CarrierUi'
@@ -278,6 +283,139 @@ export function AgentPromotoriaClaimsPage({ mapboxToken = '' }: AgentPromotoriaC
           )}
         </Panel>
       </div>
+
+      {/* ─── Panel de inteligencia visible para promotoría ─────────────────── */}
+      {isPromotoria && (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {/* Solicitudes de alto riesgo de la red */}
+          <Panel
+            title="Expedientes observados de la red"
+            subtitle="Solicitudes con inconsistencias o score de riesgo critico en tu promotoria."
+            right={<TrendingUp size={14} className="text-[#F7941D]" />}
+          >
+            <div className="space-y-2">
+              {underwritingCases
+                .filter(uw => uw.inconsistencies.length > 0 || uw.riskScore < 60)
+                .map(uw => {
+                  const rs = riskScores.find(r => r.entityId === uw.id)
+                  return (
+                    <div key={uw.id} className="rounded-2xl bg-white/35 p-3">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <div>
+                          <p className="text-[12px] text-[#1A1F2B]">{uw.insuredName}</p>
+                          <p className="text-[10px] text-[#6E7F8D]">{uw.id} · {uw.agentName}</p>
+                        </div>
+                        {rs && (
+                          <div className="text-right shrink-0">
+                            <p className="text-[16px]" style={{ color: rs.riskScore >= 70 ? '#69A481' : rs.riskScore >= 50 ? '#F7941D' : '#7C1F31' }}>{rs.riskScore}</p>
+                            <p className="text-[9px] text-[#6E7F8D]">Risk Score</p>
+                          </div>
+                        )}
+                      </div>
+                      {uw.inconsistencies.length > 0 && (
+                        <div className="space-y-0.5">
+                          {uw.inconsistencies.map((inc, i) => (
+                            <p key={i} className="text-[10px] text-[#7C1F31] flex items-start gap-1">
+                              <AlertTriangle size={9} className="mt-0.5 shrink-0" />
+                              {inc}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {rs?.flags && rs.flags.length > 0 && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {rs.flags.map((f, i) => (
+                            <p key={i} className="text-[10px] text-[#F7941D] flex items-start gap-1">
+                              <AlertTriangle size={9} className="mt-0.5 shrink-0" />
+                              {f}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              {underwritingCases.filter(uw => uw.inconsistencies.length > 0 || uw.riskScore < 60).length === 0 && (
+                <p className="text-[12px] text-[#6E7F8D]">Sin expedientes observados en tu red.</p>
+              )}
+            </div>
+          </Panel>
+
+          {/* Alertas de fraude de la red */}
+          <Panel
+            title="Alertas de fraude en tu red"
+            subtitle="Casos con anomalias detectadas por el motor antifraude."
+            right={<AlertTriangle size={14} className="text-[#7C1F31]" />}
+          >
+            <div className="space-y-2">
+              {fraudAlerts
+                .filter(a => a.severity !== 'normal')
+                .map(fa => (
+                  <div key={fa.id} className="rounded-2xl bg-white/35 p-3">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="min-w-0">
+                        <p className="text-[12px] text-[#1A1F2B] truncate">{fa.entityName}</p>
+                        {fa.agentName && (
+                          <p className="text-[10px] text-[#6E7F8D]">Agente: {fa.agentName}</p>
+                        )}
+                      </div>
+                      <StatusBadge
+                        color={fa.severity === 'riesgo_alto' || fa.severity === 'bloqueo_auditoria' ? '#7C1F31' : '#F7941D'}
+                        text={fraudLevelLabel[fa.severity]}
+                      />
+                    </div>
+                    <p className="text-[10px] text-[#6E7F8D]">{fa.description}</p>
+                  </div>
+                ))}
+              {fraudAlerts.filter(a => a.severity !== 'normal').length === 0 && (
+                <p className="text-[12px] text-[#6E7F8D]">Sin alertas activas en tu red.</p>
+              )}
+            </div>
+          </Panel>
+        </div>
+      )}
+
+      {/* ─── Vista de riesgo para agente individual ─────────────────────────── */}
+      {!isPromotoria && (
+        <Panel
+          title="Riesgo y documentos pendientes"
+          subtitle="Inconsistencias en expedientes de tus clientes que requieren accion."
+          right={<TrendingUp size={14} className="text-[#F7941D]" />}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            {underwritingCases
+              .filter(uw => uw.inconsistencies.length > 0 || uw.documents.some(d => d.status !== 'ok'))
+              .slice(0, 4)
+              .map(uw => (
+                <div key={uw.id} className="rounded-2xl bg-white/35 p-3 space-y-2">
+                  <div>
+                    <p className="text-[12px] text-[#1A1F2B]">{uw.insuredName}</p>
+                    <p className="text-[10px] text-[#6E7F8D]">{uw.id} · {uw.product}</p>
+                  </div>
+                  {uw.documents.filter(d => d.status !== 'ok').map(doc => (
+                    <div key={doc.name} className="flex items-center justify-between text-[10px]">
+                      <span className="text-[#1A1F2B]">{doc.name}</span>
+                      <StatusBadge
+                        color={doc.status === 'faltante' ? '#7C1F31' : '#F7941D'}
+                        text={doc.status}
+                      />
+                    </div>
+                  ))}
+                  {uw.inconsistencies.map((inc, i) => (
+                    <p key={i} className="text-[10px] text-[#F7941D] flex items-start gap-1">
+                      <AlertTriangle size={9} className="mt-0.5 shrink-0" />
+                      {inc}
+                    </p>
+                  ))}
+                  <p className="text-[10px] text-[#6E7F8D] italic">Accion: corrige antes de que la solicitud sea rechazada</p>
+                </div>
+              ))}
+            {underwritingCases.filter(uw => uw.inconsistencies.length > 0 || uw.documents.some(d => d.status !== 'ok')).length === 0 && (
+              <p className="text-[12px] text-[#6E7F8D] col-span-2">Sin expedientes con documentos faltantes.</p>
+            )}
+          </div>
+        </Panel>
+      )}
     </div>
   )
 }

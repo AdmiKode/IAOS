@@ -2,67 +2,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/lib/auth-context'
-
-const PERFILES_DEMO = [
-  {
-    rol: 'Agente de Seguros',
-    email: 'agente@demo.com',
-    password: 'demo1234',
-    redirect: '/agent/dashboard',
-    color: '#F7941D',
-    colorLight: 'rgba(247,148,29,0.12)',
-    border: 'rgba(247,148,29,0.35)',
-    badge: 'Cédula vigente',
-    puntos: [
-      'Dashboard personal y agenda diaria',
-      'Cartera de clientes y pipeline',
-      'Originación, cotización y emisión',
-      'Cobranza, siniestros y tickets',
-      'XORIA como copiloto operativo',
-    ],
-  },
-  {
-    rol: 'Broker / Despacho',
-    email: 'broker@demo.com',
-    password: 'demo1234',
-    redirect: '/agent/dashboard',
-    color: '#0057A8',
-    colorLight: 'rgba(0,87,168,0.10)',
-    border: 'rgba(0,87,168,0.30)',
-    badge: 'Con equipo',
-    puntos: [
-      'Visión global de todos los agentes',
-      'Pipeline y cartera del despacho',
-      'Gestión de equipo y reportes',
-      'Financiero y comisiones del grupo',
-      'Cumplimiento y control de IA',
-    ],
-  },
-  {
-    rol: 'Promotoría',
-    email: 'promotoria@demo.com',
-    password: 'demo1234',
-    redirect: '/agent/dashboard',
-    color: '#69A481',
-    colorLight: 'rgba(105,164,129,0.12)',
-    border: 'rgba(105,164,129,0.35)',
-    badge: 'Red de agentes',
-    puntos: [
-      'Red completa de sub-agentes',
-      'Dashboard consolidado de producción',
-      'Metas, KPIs y productividad',
-      'Reclutamiento y formación del equipo',
-      'Reportes de crecimiento y retención',
-    ],
-  },
-]
 
 export default function IntroPage() {
-  const { login } = useAuth()
-  const router = useRouter()
-
   const sphere1 = useRef<HTMLDivElement>(null)
   const sphere2 = useRef<HTMLDivElement>(null)
   const sphere3 = useRef<HTMLDivElement>(null)
@@ -82,11 +23,6 @@ export default function IntroPage() {
     window.addEventListener('mousemove', onMouseMove)
     return () => window.removeEventListener('mousemove', onMouseMove)
   }, [])
-
-  function entrarComo(perfil: typeof PERFILES_DEMO[0]) {
-    login(perfil.email, perfil.password)
-    router.push(perfil.redirect)
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden flex flex-col"
@@ -157,56 +93,6 @@ export default function IntroPage() {
           </div>
         </div>
 
-        {/* ── Selector de perfiles ── */}
-        <div className="w-full max-w-4xl">
-          <div className="flex items-center justify-center gap-3 mb-5">
-            <div className="h-px flex-1 bg-white/20" />
-            <p className="text-white/70 text-[11px] font-bold tracking-[0.25em] uppercase">Acceder directamente como</p>
-            <div className="h-px flex-1 bg-white/20" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {PERFILES_DEMO.map(perfil => (
-              <button key={perfil.email} onClick={() => entrarComo(perfil)}
-                className="group text-left rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02] active:scale-[0.99]"
-                style={{ background: 'rgba(255,255,255,0.10)', backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${perfil.border}`,
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.10)' }}>
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="text-white text-[15px] font-bold leading-tight">{perfil.rol}</p>
-                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                      style={{ background: perfil.colorLight, color: perfil.color, border: `1px solid ${perfil.border}` }}>
-                      {perfil.badge}
-                    </span>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform"
-                    style={{ background: perfil.colorLight, border: `1px solid ${perfil.border}` }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={perfil.color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                    </svg>
-                  </div>
-                </div>
-                <ul className="flex flex-col gap-1.5 mb-4">
-                  {perfil.puntos.map(p => (
-                    <li key={p} className="flex items-start gap-2">
-                      <span className="mt-0.5 shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: perfil.colorLight }}>
-                        <svg width="7" height="7" viewBox="0 0 12 12" fill={perfil.color}><path d="M2 6l3 3 5-5"/></svg>
-                      </span>
-                      <span className="text-[11px] text-white/75 leading-tight">{p}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[12px] font-bold transition-all"
-                  style={{ background: perfil.colorLight, color: perfil.color, border: `1px solid ${perfil.border}` }}>
-                  Entrar como {perfil.rol.split(' ')[0]}
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={perfil.color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* ── Footer ── */}

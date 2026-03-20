@@ -8,6 +8,7 @@ import {
   FileCheck2,
   Search,
   ShieldAlert,
+  TrendingUp,
   XCircle,
 } from 'lucide-react'
 import {
@@ -15,6 +16,10 @@ import {
   UnderwritingStatus,
   underwritingCases,
   underwritingStatusLabel,
+  riskScores,
+  riskLevelLabel,
+  fraudAlerts,
+  fraudLevelLabel,
 } from '@/data/carrier-core'
 import { Panel, StatusBadge } from '@/components/insurance/CarrierUi'
 
@@ -32,6 +37,16 @@ const ACTION_TARGET_STATUS: Record<'aprobar' | 'rechazar' | 'info', Underwriting
   rechazar: 'rechazado',
   info: 'pendiente_informacion',
 }
+
+// KPIs globales de suscripción (valores realistas de aseguradora mediana)
+const UW_KPIS: { status: UnderwritingStatus; label: string; value: number }[] = [
+  { status: 'nuevo',                value: 412,   label: 'Nuevas'      },
+  { status: 'en_revision',          value: 384,   label: 'En revisión' },
+  { status: 'observado',            value: 127,   label: 'Observadas'  },
+  { status: 'aprobado',             value: 3241,  label: 'Aprobadas'   },
+  { status: 'rechazado',            value: 298,   label: 'Rechazadas'  },
+  { status: 'pendiente_informacion',value: 89,    label: 'Pend. info'  },
+]
 
 export function CarrierUnderwritingPage() {
   const [search, setSearch] = useState('')
@@ -64,23 +79,16 @@ export function CarrierUnderwritingPage() {
         subtitle="Mesa operativa para revisar expediente, score de riesgo y consistencias documentales."
       >
         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
-          {(
-            ['nuevo', 'en_revision', 'observado', 'aprobado', 'rechazado', 'pendiente_informacion'] as UnderwritingStatus[]
-          ).map((status) => {
-            const total = underwritingCases.filter(
-              (item) => (localStatus[item.id] ?? item.status) === status,
-            ).length
-            return (
-              <button
-                key={status}
-                onClick={() => setStatusFilter((current) => (current === status ? 'todos' : status))}
-                className="rounded-2xl bg-white/35 p-3 text-left"
-              >
-                <p className="text-[10px] uppercase tracking-[0.14em] text-[#6E7F8D]">{underwritingStatusLabel[status]}</p>
-                <p className="mt-1 text-[20px]" style={{ color: STATUS_COLOR[status] }}>{total}</p>
-              </button>
-            )
-          })}
+          {UW_KPIS.map(({ status, value, label }) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter((current) => (current === status ? 'todos' : status))}
+              className="rounded-2xl bg-white/35 p-3 text-left"
+            >
+              <p className="text-[10px] uppercase tracking-[0.14em] text-[#6E7F8D]">{label}</p>
+              <p className="mt-1 text-[20px]" style={{ color: STATUS_COLOR[status] }}>{value.toLocaleString('es-MX')}</p>
+            </button>
+          ))}
         </div>
       </Panel>
 
@@ -168,6 +176,59 @@ export function CarrierUnderwritingPage() {
                   {selected.ramo} · Prima anual {formatCurrencyMXN(selected.annualPremium)}
                 </p>
               </div>
+
+              {/* Capa de riesgo predictivo inyectada */}
+              {(() => {
+                const rs = riskScores.find(r => r.entityId === selected.id)
+                const fa = fraudAlerts.filter(a => a.entityId === selected.id)
+                if (!rs && fa.length === 0) return null
+                return (
+                  <div className="rounded-2xl border border-[#F7941D]/30 bg-[#F7941D]/6 p-3 space-y-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <TrendingUp size={13} className="text-[#F7941D]" />
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-[#F7941D]">Inteligencia de riesgo</p>
+                    </div>
+                    {rs && (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="rounded-xl bg-white/40 px-2.5 py-2 text-center">
+                          <p className="text-[10px] text-[#6E7F8D]">Risk Score</p>
+                          <p className="text-[18px]" style={{ color: rs.riskScore >= 75 ? '#69A481' : rs.riskScore >= 55 ? '#F7941D' : '#7C1F31' }}>{rs.riskScore}<span className="text-[10px] text-[#6E7F8D]">/100</span></p>
+                        </div>
+                        <div className="rounded-xl bg-white/40 px-2.5 py-2 text-center">
+                          <p className="text-[10px] text-[#6E7F8D]">Renovacion</p>
+                          <p className="text-[18px]" style={{ color: rs.renewalPropensity >= 70 ? '#69A481' : '#F7941D' }}>{rs.renewalPropensity}%</p>
+                        </div>
+                        <div className="rounded-xl bg-white/40 px-2.5 py-2 flex items-center justify-between">
+                          <span className="text-[10px] text-[#6E7F8D]">Fraude</span>
+                          <StatusBadge color={rs.fraudRisk === 'bajo' ? '#69A481' : rs.fraudRisk === 'medio' ? '#F7941D' : '#7C1F31'} text={riskLevelLabel[rs.fraudRisk]} />
+                        </div>
+                        <div className="rounded-xl bg-white/40 px-2.5 py-2 flex items-center justify-between">
+                          <span className="text-[10px] text-[#6E7F8D]">Impago</span>
+                          <StatusBadge color={rs.paymentDefaultRisk === 'bajo' ? '#69A481' : rs.paymentDefaultRisk === 'medio' ? '#F7941D' : '#7C1F31'} text={riskLevelLabel[rs.paymentDefaultRisk]} />
+                        </div>
+                      </div>
+                    )}
+                    {rs?.flags && rs.flags.length > 0 && (
+                      <div className="space-y-1">
+                        {rs.flags.map((f, i) => (
+                          <div key={i} className="flex items-start gap-1.5 text-[10px] text-[#7C1F31]">
+                            <AlertTriangle size={10} className="mt-0.5 shrink-0" />
+                            {f}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {fa.map(alert => (
+                      <div key={alert.id} className="rounded-xl bg-[#7C1F31]/10 px-2.5 py-2">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <StatusBadge color="#7C1F31" text={fraudLevelLabel[alert.severity]} />
+                        </div>
+                        <p className="text-[10px] text-[#7C1F31]">{alert.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
 
               <div className="rounded-2xl bg-white/35 p-3">
                 <p className="mb-2 text-[10px] uppercase tracking-[0.14em] text-[#6E7F8D]">Documentos</p>

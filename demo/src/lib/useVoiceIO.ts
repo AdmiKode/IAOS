@@ -31,6 +31,43 @@ declare global {
 
 export type VoiceState = 'idle' | 'speaking' | 'listening' | 'processing'
 
+// ─── Diccionario de normalización para TTS en español ─────────────────────────
+// Evita que siglas y anglicismos se lean en inglés o incorrectamente
+function normalizeTTS(text: string): string {
+  const dict: [RegExp, string][] = [
+    // Siglas médicas / seguros
+    [/\bGMM\b/g, 'gastos médicos mayores'],
+    [/\bGMI\b/g, 'gastos médicos individuales'],
+    [/\bRC\b/g, 'responsabilidad civil'],
+    [/\bDA\b/g, 'daños'],
+    [/\bVUL\b/g, 'vida universal'],
+    [/\bSUA\b/g, 'seguro de accidentes'],
+    [/\bIBNR\b/g, 'reserva incurrida no reportada'],
+    [/\bSLA\b/g, 'acuerdo de servicio'],
+    [/\bKPIs?\b/gi, 'indicadores clave'],
+    [/\bROI\b/g, 'retorno de inversión'],
+    [/\bNPS\b/g, 'índice de satisfacción'],
+    [/\bCFDI\b/g, 'factura electrónica'],
+    [/\bRFC\b/g, 'registro fiscal'],
+    [/\bAPI\b/gi, 'interfaz de programación'],
+    // Anglicismos comunes en seguros/fintech
+    [/\bpipeline\b/gi, 'cartera de oportunidades'],
+    [/\bdashboard\b/gi, 'tablero'],
+    [/\bunderwriting\b/gi, 'suscripción'],
+    [/\bclaims?\b/gi, 'siniestro'],
+    [/\bbilling\b/gi, 'cobranza'],
+    [/\bleads?\b/gi, 'prospectos'],
+    [/\bfollow[\s-]?up\b/gi, 'seguimiento'],
+    [/\bcheckout\b/gi, 'pago en línea'],
+    [/\bonboarding\b/gi, 'incorporación'],
+    [/\bchurn\b/gi, 'cancelación'],
+    [/\bbacklog\b/gi, 'lista de pendientes'],
+    [/\bstatus\b/gi, 'estado'],
+    [/\breport(?:e)?\b/gi, 'reporte'],
+  ]
+  return dict.reduce((t, [re, rep]) => t.replace(re, rep), text)
+}
+
 interface UseVoiceIOOptions {
   lang?: string           // default 'es-MX'
   voiceName?: string      // nombre parcial de la voz buscada
@@ -74,11 +111,15 @@ export function useVoiceIO(options: UseVoiceIOOptions = {}) {
     // Buscar voz femenina mexicana
     function pickVoice() {
       const voices = synthRef.current?.getVoices() ?? []
-      // Prioridad: Google español México > Microsoft Sabina > cualquier es-MX > es-ES femenina
+      // Prioridad: Google español México femenina > Microsoft Sabina > Paulina > cualquier es-MX > es-ES femenina
       const candidates = [
-        voices.find(v => v.lang === 'es-MX' && /sabina|paulina|maria|female|mujer/i.test(v.name)),
+        voices.find(v => v.lang === 'es-MX' && /sabina/i.test(v.name)),
+        voices.find(v => v.lang === 'es-MX' && /paulina/i.test(v.name)),
+        voices.find(v => v.lang === 'es-MX' && /maria|female|mujer/i.test(v.name)),
+        voices.find(v => v.lang === 'es-MX' && !/male|hombre|jorge|juan|pablo|carlos/i.test(v.name)),
         voices.find(v => v.lang === 'es-MX'),
         voices.find(v => v.lang.startsWith('es') && /sabina|paulina|maria|female/i.test(v.name)),
+        voices.find(v => v.lang.startsWith('es') && !/male|hombre|jorge|juan|pablo|carlos/i.test(v.name)),
         voices.find(v => v.lang.startsWith('es')),
       ]
       voiceRef.current = candidates.find(Boolean) ?? null
@@ -148,7 +189,7 @@ export function useVoiceIO(options: UseVoiceIOOptions = {}) {
     synthRef.current.cancel()
     setVoiceState('speaking')
 
-    const utt = new SpeechSynthesisUtterance(text)
+    const utt = new SpeechSynthesisUtterance(normalizeTTS(text))
     utt.lang = lang
     utt.rate = rate
     utt.pitch = pitch

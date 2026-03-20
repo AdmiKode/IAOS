@@ -3,12 +3,15 @@
 import { useMemo, useState } from 'react'
 import {
   AlertTriangle,
+  ArrowUpRight,
   FileText,
   Search,
 } from 'lucide-react'
+import Link from 'next/link'
 import {
   adjusterById,
   claimsCases,
+  claimsFinancialKpis,
   claimsStatusLabel,
   ClaimStatus,
 } from '@/data/carrier-core'
@@ -56,29 +59,22 @@ export function CarrierClaimsPage({ mapboxToken = '' }: CarrierClaimsPageProps) 
   const selected = rows.find((row) => row.id === selectedId) ?? rows[0] ?? null
   const selectedAdjuster = selected ? adjusterById(selected.adjusterId) : null
 
-  const kpis = useMemo(() => {
-    const open = claimsCases.filter((claim) => claim.status !== 'cerrado').length
-    const critical = claimsCases.filter((claim) => claim.elapsedMinutes > claim.slaMinutes).length
-    const assigned = claimsCases.filter((claim) => claim.status !== 'reportado' && claim.status !== 'cerrado').length
-    return { open, critical, assigned }
-  }, [])
-
   return (
     <div className="space-y-4">
-      <Panel title="Siniestros" subtitle="Claims center con seguimiento en tiempo real de ajustador, SLA y trazabilidad completa.">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl bg-white/35 p-3">
-            <p className="text-[10px] uppercase tracking-[0.14em] text-[#6E7F8D]">Siniestros abiertos</p>
-            <p className="mt-1 text-[20px] text-[#1A1F2B]">{kpis.open}</p>
-          </div>
-          <div className="rounded-2xl bg-white/35 p-3">
-            <p className="text-[10px] uppercase tracking-[0.14em] text-[#6E7F8D]">SLA critico</p>
-            <p className="mt-1 text-[20px] text-[#7C1F31]">{kpis.critical}</p>
-          </div>
-          <div className="rounded-2xl bg-white/35 p-3">
-            <p className="text-[10px] uppercase tracking-[0.14em] text-[#6E7F8D]">Con ajustador asignado</p>
-            <p className="mt-1 text-[20px] text-[#69A481]">{kpis.assigned}</p>
-          </div>
+      <Panel title="Siniestros" subtitle="Claims center financiero: reservas, pagos, siniestralidad y seguimiento en tiempo real.">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {claimsFinancialKpis.map((kpi) => (
+            <Link key={kpi.label} href={kpi.drillPath}
+              className="group rounded-2xl bg-white/35 p-3 flex flex-col gap-1 hover:bg-white/55 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-[#6E7F8D]">{kpi.label}</p>
+                <ArrowUpRight size={12} className="text-[#B5BFC6] group-hover:text-[#F7941D] transition-colors" />
+              </div>
+              <p className="text-[20px] leading-none" style={{ color: kpi.color }}>{kpi.value}</p>
+              <p className="text-[10px] text-[#6E7F8D]">{kpi.sub}</p>
+            </Link>
+          ))}
         </div>
       </Panel>
 

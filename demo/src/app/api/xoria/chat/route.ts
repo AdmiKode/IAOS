@@ -91,7 +91,7 @@ REGLAS:
 - Sin asteriscos dobles (**) ni markdown. Solo texto plano con saltos de línea.
 - Usa los datos del contexto. Si la respuesta está ahí, cítala con precisión (nombres, montos, fechas reales).
 - Máximo 200 palabras a menos que se pida documento completo.
-- Cuando propongas acciones, termina con "¿Confirmas?" o "¿Lo hago?"
+- No termines los mensajes con preguntas de confirmación como "¿Confirmas?" ni "¿Lo hago?". Presenta la información de forma directa y ejecutiva.
 
 ${externalInfo ? `\nINFORMACIÓN EXTERNA ACTUALIZADA (Tavily):\n${externalInfo}\n` : ''}
 
@@ -166,6 +166,18 @@ async function callOpenAI(systemPrompt: string, messages: { role: string; conten
   } catch { return null }
 }
 
+// Strip markdown formatting from AI responses
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold** → bold
+    .replace(/\*(.+?)\*/g, '$1')        // *italic* → italic
+    .replace(/#{1,6} (.+)/g, '$1')      // ## Heading → Heading
+    .replace(/`([^`]+)`/g, '$1')            // `code` → code
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // [link](url) → link
+    .replace(/^\s*[-*+] /gm, '• ')      // - item → • item
+    .trim()
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -207,7 +219,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (reply) {
-      return NextResponse.json({ reply, response: reply, model: provider })
+      const clean = stripMarkdown(reply)
+      return NextResponse.json({ reply: clean, response: clean, model: provider })
     }
 
     // 4. Demo fallback sin APIs
@@ -227,7 +240,7 @@ export async function POST(req: NextRequest) {
       fallback = 'XORIA conectada. Módulo activo: Aseguradora GNP. Tengo visibilidad de Underwriting, PolicyCenter, BillingCenter, ClaimCenter y Red de Distribución. ¿En qué área trabajamos?'
     }
 
-    return NextResponse.json({ reply: fallback, response: fallback, demo: true })
+    return NextResponse.json({ reply: stripMarkdown(fallback), response: stripMarkdown(fallback), demo: true })
 
   } catch (error) {
     console.error('XORIA API error:', error)

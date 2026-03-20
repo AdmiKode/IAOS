@@ -234,6 +234,20 @@ export const MOCK_SINIESTROS = [
     ],
   },
   {
+    id: 's4', clientName: 'Ana López', policyId: 'p2', policyNumber: 'QUA-2025-005678',
+    tipo: 'Choque vehicular', descripcion: 'Choque por alcance en Insurgentes Sur, daños en defensa trasera y cajuela', fecha: '2026-03-20',
+    status: 'en_proceso', monto: '$28,400', aseguradora: 'Qualitas',
+    adjuster: { nombre: 'Roberto Ibáñez', tel: '5512345678', empresa: 'Qualitas', eta: 18, distancia: '2.4 km', lat: 19.3624, lng: -99.1747 },
+    vehiculo: { marca: 'Honda', modelo: 'CR-V 2023', placa: 'XTZ-123-B', color: 'Gris' },
+    ubicacion: 'Insurgentes Sur 1450, Col. Del Valle, CDMX',
+    timeline: [
+      { id: 'st20', accion: 'Reporte de accidente recibido', fecha: '2026-03-20 10:07', responsable: 'Sistema' },
+      { id: 'st21', accion: 'Folio asignado — QUA-2026-0452', fecha: '2026-03-20 10:09', responsable: 'Qualitas' },
+      { id: 'st22', accion: 'Ajustador Roberto Ibáñez asignado', fecha: '2026-03-20 10:12', responsable: 'Qualitas' },
+      { id: 'st23', accion: 'Ajustador en camino — ETA 18 min', fecha: '2026-03-20 10:15', responsable: 'Roberto Ibáñez' },
+    ],
+  },
+  {
     id: 's2', clientName: 'Laura Vega', policyId: 'p7', policyNumber: 'QUA-2026-008912',
     tipo: 'Choque vehicular', descripcion: 'Choque por alcance en Periférico, daños en defensa y cofre', fecha: '2026-02-28',
     status: 'cerrado', monto: '$32,400', aseguradora: 'Qualitas',

@@ -1,3 +1,68 @@
+// ─── TIPOS DE RIESGO Y ANTIFRAUDE ───────────────────────────────────────────
+
+export type RiskLevel = 'bajo' | 'medio' | 'alto' | 'critico'
+export type FraudState = 'normal' | 'observado' | 'riesgo_medio' | 'riesgo_alto' | 'bloqueo_auditoria'
+export type RiskRamo = 'auto' | 'gmm' | 'vida' | 'danos' | 'colectivo'
+
+export interface RiskScoreRecord {
+  id: string
+  entityType: 'solicitud' | 'poliza' | 'siniestro'
+  entityId: string
+  insuredName: string
+  ramo: RiskRamo
+  product: string
+  agentName: string
+  riskScore: number          // 0–100 (mayor = más riesgoso)
+  fraudRisk: RiskLevel
+  renewalPropensity: number  // %
+  claimsSeverityForecast: RiskLevel
+  paymentDefaultRisk: RiskLevel
+  cancellationRisk: RiskLevel
+  expectedValue: number      // pesos MXN
+  variables: Record<string, string>
+  flags: string[]
+  createdAt: string
+}
+
+export interface FraudAlert {
+  id: string
+  type: 'originacion' | 'cobranza' | 'siniestro' | 'proveedor' | 'canal'
+  severity: FraudState
+  entityId: string
+  entityType: 'solicitud' | 'poliza' | 'siniestro' | 'proveedor' | 'agente'
+  entityName: string
+  description: string
+  detail: string[]
+  detectedAt: string
+  reviewedBy: string | null
+  resolution: 'pendiente' | 'confirmado_fraude' | 'falso_positivo'
+  agentName?: string
+  promotoria?: string
+}
+
+export interface SuspiciousProvider {
+  id: string
+  name: string
+  type: 'taller' | 'hospital' | 'grua' | 'perito' | 'abogado'
+  zone: string
+  alertCount: number
+  avgInvoiceInflation: number // % sobre histórico
+  duplicateClaims: number
+  state: FraudState
+  topAlert: string
+}
+
+export interface RiskKPI {
+  id: string
+  label: string
+  value: string
+  detail: string
+  color: string
+  drillPath?: string
+}
+
+// ─── TIPOS ORIGINALES ────────────────────────────────────────────────────────
+
 export type UnderwritingStatus =
   | 'nuevo'
   | 'en_revision'
@@ -133,7 +198,26 @@ export interface ClaimCase {
   tracking: TrackingPoint[]
   agentName: string
   promotoria: string
+  reserva?: number
+  montoPagado?: number
 }
+
+export interface ClaimsFinancialKpi {
+  label: string
+  value: string
+  sub: string
+  color: string
+  drillPath: string
+}
+
+export const claimsFinancialKpis: ClaimsFinancialKpi[] = [
+  { label: 'Reserva total constituida', value: '$47.2M', sub: '+$3.8M vs feb', color: '#F7941D', drillPath: '/agent/aseguradora/siniestros' },
+  { label: 'Pagos realizados (marzo)', value: '$18.9M', sub: '612 casos cerrados', color: '#7C1F31', drillPath: '/agent/aseguradora/siniestros' },
+  { label: 'Prima siniestrada (acum.)', value: '$214.7M', sub: 'Siniestralidad 58.4%', color: '#1A1F2B', drillPath: '/agent/aseguradora/finanzas' },
+  { label: 'Reserva IBNR estimada', value: '$11.6M', sub: 'Modelo actuarial Q1 2026', color: '#69A481', drillPath: '/agent/aseguradora/siniestros' },
+  { label: 'Siniestros abiertos', value: '612', sub: '+34 vs feb', color: '#F7941D', drillPath: '/agent/aseguradora/siniestros' },
+  { label: 'SLA critico', value: '74', sub: '12% del backlog', color: '#7C1F31', drillPath: '/agent/aseguradora/siniestros' },
+]
 
 export interface ChannelPerformance {
   id: string
@@ -936,6 +1020,43 @@ export const concentrationByChannel = [
   { channel: 'Banca', share: 9.2 },
 ]
 
+export type CommissionStatus = 'pagado' | 'pendiente' | 'retenido' | 'en_proceso'
+
+export interface CommissionRecord {
+  id: string
+  entidad: string
+  tipo: 'promotoria' | 'agente'
+  mes: string
+  prima: number
+  comision: number
+  porcentaje: number
+  status: CommissionStatus
+  cfdiEmitido: boolean
+  cfdiUuid: string | null
+  cfdiDate: string | null
+  observacion: string | null
+}
+
+export const commissionStatusLabel: Record<CommissionStatus, string> = {
+  pagado: 'Pagado',
+  pendiente: 'Pendiente',
+  retenido: 'Retenido',
+  en_proceso: 'En proceso',
+}
+
+export const commissionRecords: CommissionRecord[] = [
+  { id: 'COM-001', entidad: 'Vidal Grupo', tipo: 'promotoria', mes: 'Mar 2026', prima: 32_400_000, comision: 3_240_000, porcentaje: 10, status: 'en_proceso', cfdiEmitido: false, cfdiUuid: null, cfdiDate: null, observacion: 'CFDI pendiente de recepcion' },
+  { id: 'COM-002', entidad: 'Alianza Seguros GDL', tipo: 'promotoria', mes: 'Mar 2026', prima: 18_700_000, comision: 1_870_000, porcentaje: 10, status: 'pagado', cfdiEmitido: true, cfdiUuid: 'a3f9-4211-bc82-ee10', cfdiDate: '2026-03-15', observacion: null },
+  { id: 'COM-003', entidad: 'Seguros Premier Norte', tipo: 'promotoria', mes: 'Mar 2026', prima: 14_200_000, comision: 1_420_000, porcentaje: 10, status: 'pendiente', cfdiEmitido: false, cfdiUuid: null, cfdiDate: null, observacion: 'Saldo anterior no conciliado' },
+  { id: 'COM-004', entidad: 'Carlos Mendoza', tipo: 'agente', mes: 'Mar 2026', prima: 4_800_000, comision: 432_000, porcentaje: 9, status: 'pagado', cfdiEmitido: true, cfdiUuid: 'b1e2-9034-aa21-cc44', cfdiDate: '2026-03-18', observacion: null },
+  { id: 'COM-005', entidad: 'Javier Morales', tipo: 'agente', mes: 'Mar 2026', prima: 3_100_000, comision: 248_000, porcentaje: 8, status: 'en_proceso', cfdiEmitido: false, cfdiUuid: null, cfdiDate: null, observacion: 'Expediente de alta incompleto' },
+  { id: 'COM-006', entidad: 'Valeria Castillo', tipo: 'agente', mes: 'Mar 2026', prima: 2_650_000, comision: 198_750, porcentaje: 7.5, status: 'retenido', cfdiEmitido: false, cfdiUuid: null, cfdiDate: null, observacion: 'Investigacion antifraude activa' },
+  { id: 'COM-007', entidad: 'Diego Pacheco', tipo: 'agente', mes: 'Mar 2026', prima: 2_200_000, comision: 176_000, porcentaje: 8, status: 'pagado', cfdiEmitido: true, cfdiUuid: 'c4d5-7821-ff93-aa01', cfdiDate: '2026-03-17', observacion: null },
+  { id: 'COM-008', entidad: 'Luis Ramirez', tipo: 'agente', mes: 'Mar 2026', prima: 1_980_000, comision: 148_500, porcentaje: 7.5, status: 'pendiente', cfdiEmitido: false, cfdiUuid: null, cfdiDate: null, observacion: 'Esperando cierre de mes' },
+  { id: 'COM-009', entidad: 'Maxima Red SA', tipo: 'promotoria', mes: 'Feb 2026', prima: 28_100_000, comision: 2_810_000, porcentaje: 10, status: 'pagado', cfdiEmitido: true, cfdiUuid: 'd8f2-3345-bb77-ff99', cfdiDate: '2026-02-28', observacion: null },
+  { id: 'COM-010', entidad: 'Grupo Asegurador Centro', tipo: 'promotoria', mes: 'Feb 2026', prima: 11_600_000, comision: 1_044_000, porcentaje: 9, status: 'retenido', cfdiEmitido: false, cfdiUuid: null, cfdiDate: null, observacion: 'Acuerdo de descuento por cancelaciones' },
+]
+
 export const reportsCatalog = [
   { id: 'RP-01', name: 'Produccion por ramo', group: 'Produccion', rows: 5 },
   { id: 'RP-02', name: 'Produccion por promotoria', group: 'Produccion', rows: 4 },
@@ -1000,3 +1121,225 @@ export function claimById(claimId: string) {
 export function adjusterById(adjusterId: string) {
   return adjusters.find((adjuster) => adjuster.id === adjusterId)
 }
+
+// ─── DATOS MOCK: RIESGO PREDICTIVO ──────────────────────────────────────────
+
+export const riskScores: RiskScoreRecord[] = [
+  {
+    id: 'RS-001', entityType: 'solicitud', entityId: 'UW-2026-1041',
+    insuredName: 'Carlos Mendez Ruiz', ramo: 'gmm', product: 'GMM Elite',
+    agentName: 'Valeria Castillo', riskScore: 82, fraudRisk: 'bajo',
+    renewalPropensity: 78, claimsSeverityForecast: 'bajo', paymentDefaultRisk: 'bajo',
+    cancellationRisk: 'bajo', expectedValue: 103_200,
+    variables: { edad: '42', zona_postal: '06600', cobertura: 'Amplia', historial_siniestros: '0' },
+    flags: [], createdAt: '2026-03-20 08:15',
+  },
+  {
+    id: 'RS-002', entityType: 'solicitud', entityId: 'UW-2026-1038',
+    insuredName: 'Sofia Torres Garcia', ramo: 'vida', product: 'Vida Patrimonial',
+    agentName: 'Luis Ramirez', riskScore: 54, fraudRisk: 'medio',
+    renewalPropensity: 61, claimsSeverityForecast: 'medio', paymentDefaultRisk: 'medio',
+    cancellationRisk: 'medio', expectedValue: 74_400,
+    variables: { edad: '38', ocupacion: 'Empresaria', suma_asegurada: '5M', habitos: 'No declarados' },
+    flags: ['Ingreso declarado inconsistente con estado de cuenta', 'Ocupacion de alto riesgo no documentada'],
+    createdAt: '2026-03-20 07:50',
+  },
+  {
+    id: 'RS-003', entityType: 'solicitud', entityId: 'UW-2026-1034',
+    insuredName: 'Grupo Comercial del Norte', ramo: 'auto', product: 'Auto Amplia Plus Flota',
+    agentName: 'Diego Pacheco', riskScore: 68, fraudRisk: 'medio',
+    renewalPropensity: 55, claimsSeverityForecast: 'alto', paymentDefaultRisk: 'bajo',
+    cancellationRisk: 'medio', expectedValue: 1_248_000,
+    variables: { unidades: '18', uso: 'Comercial', zona: 'Monterrey', historial_siniestros: '3' },
+    flags: ['3 siniestros de flota en 12 meses', 'VIN inconsistente en 3 unidades'],
+    createdAt: '2026-03-19 22:11',
+  },
+  {
+    id: 'RS-004', entityType: 'solicitud', entityId: 'UW-2026-1023',
+    insuredName: 'Ruben Zepeda', ramo: 'vida', product: 'Vida Patrimonial',
+    agentName: 'Hector Rios', riskScore: 39, fraudRisk: 'alto',
+    renewalPropensity: 20, claimsSeverityForecast: 'critico', paymentDefaultRisk: 'alto',
+    cancellationRisk: 'alto', expectedValue: 89_500,
+    variables: { edad: '55', ocupacion: 'No declarada', suma_asegurada: '10M', habitos: 'Fumador activo' },
+    flags: ['Antecedente medico no declarado', 'Suma asegurada 3x sobre promedio de perfil', 'Score de buró bajo'],
+    createdAt: '2026-03-19 15:10',
+  },
+  {
+    id: 'RS-005', entityType: 'poliza', entityId: 'GNP-GMM-2026-01842',
+    insuredName: 'Constructora Omega', ramo: 'gmm', product: 'GMM Colectivo 100+',
+    agentName: 'Ana Dominguez', riskScore: 76, fraudRisk: 'bajo',
+    renewalPropensity: 82, claimsSeverityForecast: 'medio', paymentDefaultRisk: 'bajo',
+    cancellationRisk: 'bajo', expectedValue: 2_980_000,
+    variables: { asegurados: '142', edad_promedio: '39', zona: 'CDMX', siniestralidad_historica: '47%' },
+    flags: [],
+    createdAt: '2026-03-18 10:00',
+  },
+  {
+    id: 'RS-006', entityType: 'siniestro', entityId: 'SIN-2026-0411',
+    insuredName: 'Patricia Leal Vega', ramo: 'auto', product: 'Auto Amplia Plus',
+    agentName: 'Valeria Castillo', riskScore: 88, fraudRisk: 'alto',
+    renewalPropensity: 45, claimsSeverityForecast: 'alto', paymentDefaultRisk: 'bajo',
+    cancellationRisk: 'medio', expectedValue: 0,
+    variables: { dias_vigencia_al_siniestro: '11', monto_reclamado: '$142,000', taller: 'Taller Rápido SA', fotos: '2' },
+    flags: ['Siniestro reportado 11 dias tras emision', 'Taller con historial de sobrecosto', 'Fotos de evidencia insuficientes'],
+    createdAt: '2026-03-20 09:30',
+  },
+  {
+    id: 'RS-007', entityType: 'poliza', entityId: 'GNP-AUTO-2025-09912',
+    insuredName: 'Roberto Cárdenas', ramo: 'auto', product: 'Auto Basica',
+    agentName: 'Diego Pacheco', riskScore: 62, fraudRisk: 'medio',
+    renewalPropensity: 48, claimsSeverityForecast: 'medio', paymentDefaultRisk: 'alto',
+    cancellationRisk: 'alto', expectedValue: 18_400,
+    variables: { pagos_vencidos: '2', intentos_cargo: '4', ultimo_pago: '2026-01-15' },
+    flags: ['2 recibos vencidos consecutivos', '4 intentos de cargo fallidos', 'Riesgo de baja por cobranza'],
+    createdAt: '2026-03-20 07:00',
+  },
+]
+
+export const riskKpis: RiskKPI[] = [
+  { id: 'r1', label: 'Solicitudes score < 50', value: '23', detail: 'Requieren revision manual o rechazo', color: '#7C1F31', drillPath: '/agent/aseguradora/underwriting' },
+  { id: 'r2', label: 'Riesgo de impago activo', value: '312 polizas', detail: 'Con probabilidad > 60% de impago', color: '#F7941D', drillPath: '/agent/aseguradora/polizas' },
+  { id: 'r3', label: 'Riesgo de cancelacion', value: '1,084 polizas', detail: 'Propensión de baja en 90 dias', color: '#F7941D', drillPath: '/agent/aseguradora/polizas' },
+  { id: 'r4', label: 'Severidad alta en siniestros', value: '74 casos', detail: 'Forecast de costo > $80K por caso', color: '#7C1F31', drillPath: '/agent/aseguradora/siniestros' },
+  { id: 'r5', label: 'Cartera en riesgo total', value: '$48.2M', detail: 'Prima anualizada de polizas con score < 60', color: '#7C1F31', drillPath: '/agent/aseguradora/finanzas' },
+  { id: 'r6', label: 'Propension de renovacion alta', value: '68.4%', detail: 'Cartera con score de renovacion > 70%', color: '#69A481', drillPath: '/agent/aseguradora/polizas' },
+]
+
+export const fraudAlerts: FraudAlert[] = [
+  {
+    id: 'FA-001', type: 'siniestro', severity: 'riesgo_alto',
+    entityId: 'SIN-2026-0411', entityType: 'siniestro',
+    entityName: 'Siniestro SIN-2026-0411 · Patricia Leal Vega',
+    description: 'Siniestro reportado 11 dias despues de emision de poliza',
+    detail: [
+      'Poliza emitida el 2026-03-09 con vigencia inmediata',
+      'Siniestro de colision reportado el 2026-03-20',
+      'Monto reclamado $142,000 — 2.8x sobre perfil similar',
+      'Taller asignado tiene 6 alertas previas de sobrecosto',
+      'Fotos de evidencia insuficientes (2 fotos para daños mayores)',
+    ],
+    detectedAt: '2026-03-20 09:30', reviewedBy: null, resolution: 'pendiente',
+    agentName: 'Valeria Castillo', promotoria: 'Promotoria Vidal Grupo',
+  },
+  {
+    id: 'FA-002', type: 'originacion', severity: 'riesgo_medio',
+    entityId: 'UW-2026-1038', entityType: 'solicitud',
+    entityName: 'Solicitud UW-2026-1038 · Sofia Torres Garcia',
+    description: 'CURP inconsistente con fecha de nacimiento declarada',
+    detail: [
+      'Fecha de nacimiento declarada: 15 Mar 1988',
+      'CURP indica nacimiento: 15 Ene 1984 (4 años de diferencia)',
+      'Suma asegurada de Vida: $5,000,000',
+      'Beneficiario declarado sin relacion comprobable',
+    ],
+    detectedAt: '2026-03-20 08:02', reviewedBy: null, resolution: 'pendiente',
+    agentName: 'Luis Ramirez', promotoria: 'Promotoria Vidal Grupo',
+  },
+  {
+    id: 'FA-003', type: 'proveedor', severity: 'riesgo_alto',
+    entityId: 'PROV-0088', entityType: 'proveedor',
+    entityName: 'Taller Rapido SA de CV',
+    description: 'Patron de facturacion inflada detectado en 9 siniestros',
+    detail: [
+      '9 expedientes asignados en 60 dias',
+      'Costo promedio 28% por encima del historico de taller zona norte',
+      '3 siniestros con fotos reutilizadas de casos anteriores',
+      'Declaraciones inconsistentes entre ajustador y taller',
+    ],
+    detectedAt: '2026-03-19 14:00', reviewedBy: 'Lic. Morales (Antifraude)', resolution: 'pendiente',
+  },
+  {
+    id: 'FA-004', type: 'originacion', severity: 'bloqueo_auditoria',
+    entityId: 'UW-2026-1023', entityType: 'solicitud',
+    entityName: 'Solicitud UW-2026-1023 · Ruben Zepeda',
+    description: 'Documento duplicado detectado en otra solicitud activa',
+    detail: [
+      'INE presentada ya existe en solicitud UW-2025-8819 con nombre diferente',
+      'Solicitud anterior rechazada por antecedentes medicos',
+      'Suma asegurada $10M — perfil financiero no comprobado',
+      'Agente con 2 rechazos previos por omision de informacion material',
+    ],
+    detectedAt: '2026-03-19 16:30', reviewedBy: null, resolution: 'pendiente',
+    agentName: 'Hector Rios', promotoria: 'Grupo Asegurador Sur',
+  },
+  {
+    id: 'FA-005', type: 'cobranza', severity: 'observado',
+    entityId: 'GNP-AUTO-2025-09912', entityType: 'poliza',
+    entityName: 'Poliza GNP-AUTO-2025-09912 · Roberto Cardenas',
+    description: 'Comportamiento de pago anomalo — 4 intentos de cargo fallidos',
+    detail: [
+      '4 tarjetas distintas usadas en 60 dias, todas fallidas',
+      'Patron similar a abuso de cobertura durante periodo de gracia',
+      'Renovacion solicitada pese a adeudo de 2 recibos',
+    ],
+    detectedAt: '2026-03-20 07:45', reviewedBy: null, resolution: 'pendiente',
+    agentName: 'Diego Pacheco', promotoria: 'Seguros Premier Norte',
+  },
+  {
+    id: 'FA-006', type: 'siniestro', severity: 'riesgo_medio',
+    entityId: 'SIN-2026-0387', entityType: 'siniestro',
+    entityName: 'Siniestro SIN-2026-0387 · Mario Gutierrez',
+    description: 'Patrón similar a casos de siniestros reportados previamente',
+    detail: [
+      'Tipo: Robo total de vehiculo',
+      'Mismo modelo y zona que SIN-2025-2104 (caso rechazado)',
+      'Tiempo entre emision y reporte: 18 dias',
+      'Declaracion contradice ruta GPS del vehiculo',
+    ],
+    detectedAt: '2026-03-18 11:15', reviewedBy: null, resolution: 'pendiente',
+    agentName: 'Ana Dominguez', promotoria: 'Alianza Seguros GDL',
+  },
+]
+
+export const suspiciousProviders: SuspiciousProvider[] = [
+  {
+    id: 'PROV-0088', name: 'Taller Rapido SA de CV', type: 'taller',
+    zone: 'Monterrey Norte', alertCount: 9, avgInvoiceInflation: 28,
+    duplicateClaims: 3, state: 'riesgo_alto',
+    topAlert: 'Facturas infladas 28% sobre promedio historico de zona',
+  },
+  {
+    id: 'PROV-0142', name: 'Gestion Medica del Pacifico', type: 'hospital',
+    zone: 'Guadalajara', alertCount: 5, avgInvoiceInflation: 19,
+    duplicateClaims: 1, state: 'riesgo_medio',
+    topAlert: 'Honorarios medicos 19% sobre tabulador GNP vigente',
+  },
+  {
+    id: 'PROV-0203', name: 'Gruas Express CDMX', type: 'grua',
+    zone: 'CDMX Sur', alertCount: 4, avgInvoiceInflation: 0,
+    duplicateClaims: 4, state: 'riesgo_medio',
+    topAlert: '4 expedientes con misma placa declarada en distintos siniestros',
+  },
+  {
+    id: 'PROV-0311', name: 'Despacho Juridico Omega', type: 'abogado',
+    zone: 'Nacional', alertCount: 12, avgInvoiceInflation: 0,
+    duplicateClaims: 0, state: 'bloqueo_auditoria',
+    topAlert: 'Patron de litigios masivos coordinados — 12 casos en 90 dias',
+  },
+]
+
+export const fraudLevelLabel: Record<FraudState, string> = {
+  normal: 'Normal',
+  observado: 'Observado',
+  riesgo_medio: 'Riesgo medio',
+  riesgo_alto: 'Riesgo alto',
+  bloqueo_auditoria: 'Bloqueo / Auditoria',
+}
+
+export const riskLevelLabel: Record<RiskLevel, string> = {
+  bajo: 'Bajo',
+  medio: 'Medio',
+  alto: 'Alto',
+  critico: 'Critico',
+}
+
+export const xoriaRiskPrompts = [
+  '¿Por que esta solicitud esta en riesgo alto?',
+  '¿Que me falta para mejorar la probabilidad de aprobacion?',
+  'Muestrame solicitudes con score menor a 50',
+  '¿Que casos tienen alerta critica de fraude?',
+  '¿Que proveedor tiene mas anomalias?',
+  'Resumeme por que este caso fue marcado',
+  '¿Que polizas tienen riesgo de cancelacion inminente?',
+  '¿Que agente tiene mayor tasa de rechazo?',
+]
