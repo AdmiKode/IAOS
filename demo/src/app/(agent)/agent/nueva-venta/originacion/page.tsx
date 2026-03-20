@@ -1,19 +1,20 @@
 'use client'
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import {
   ArrowLeft, ArrowRight, Check, CheckCircle2, Clock, AlertCircle,
   FileText, User, MapPin, Heart, Activity, Mic, MicOff, Send,
-  Loader2, Shield, Briefcase, Users2
+  Loader2, Shield, Briefcase, Users2, Volume2, VolumeX
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useVoiceIO } from '@/lib/useVoiceIO'
 
 function ZapIcon({ size, className }: { size: number; className?: string }) {
   return <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
 }
 
-// ─── GRUPOS GMM INDIVIDUAL — campos reales MEX-SSEG-V24.01 ───────────────────
+// ─── GRUPOS GMM INDIVIDUAL ────────────────────────────────────────────────────
 const GRUPOS_GMM_INDIVIDUAL = [
   {
     id: 'cobertura', label: 'Tipo de solicitud', icon: Shield,
@@ -91,7 +92,7 @@ const GRUPOS_GMM_INDIVIDUAL = [
   },
 ]
 
-// ─── GRUPOS GMM COLECTIVO — campos reales Colectivo Centenario ────────────────
+// ─── GRUPOS GMM COLECTIVO ─────────────────────────────────────────────────────
 const GRUPOS_GMM_COLECTIVO = [
   {
     id: 'empresa', label: 'Datos del proponente (empresa)', icon: Briefcase,
@@ -140,7 +141,7 @@ const GRUPOS_GMM_COLECTIVO = [
   },
 ]
 
-// ─── Preguntas XORIA por campo ────────────────────────────────────────────────
+// ─── Preguntas XORIA ──────────────────────────────────────────────────────────
 const PREGUNTAS: Record<string, string> = {
   tipo_solicitud: '¿Es una póliza nueva, un dependiente adicional o un cambio de plan?',
   fecha_inicio: '¿Qué fecha deseas como inicio de cobertura?',
@@ -156,7 +157,7 @@ const PREGUNTAS: Record<string, string> = {
   pais_nacimiento: '¿En qué país nació?',
   calle: '¿Cuál es la calle del domicilio de residencia?',
   num_ext: '¿Número exterior?',
-  num_int: '¿Hay número interior? (piso, depto.) — si no, escribe "sin interior"',
+  num_int: '¿Hay número interior? Si no, di sin interior.',
   colonia: '¿En qué colonia vive?',
   municipio: '¿Municipio o delegación?',
   entidad: '¿En qué entidad federativa?',
@@ -220,6 +221,32 @@ function getAllCampos(grupos: { campos: { id: string; label: string; tipo: strin
   return grupos.flatMap(g => g.campos)
 }
 
+// ─── Indicador de onda de audio ───────────────────────────────────────────────
+function AudioWave({ active }: { active: boolean }) {
+  return (
+    <div className="flex items-center gap-[2px] h-4">
+      {[1, 2, 3, 4, 3].map((h, i) => (
+        <div key={i}
+          className={cn('w-[3px] rounded-full transition-all', active ? 'bg-[#F7941D]' : 'bg-[#D1D5DB]')}
+          style={{
+            height: active ? `${h * 4}px` : '4px',
+            animationName: active ? 'audiobar' : 'none',
+            animationDuration: `${0.4 + i * 0.1}s`,
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
+            animationDirection: 'alternate',
+          }} />
+      ))}
+      <style>{`
+        @keyframes audiobar {
+          from { transform: scaleY(0.4); }
+          to   { transform: scaleY(1); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 function OriginacionContent() {
   const router = useRouter()
   const params = useSearchParams()
@@ -231,24 +258,70 @@ function OriginacionContent() {
 
   const [valores, setValores] = useState<Record<string, string>>({})
   const [campoActual, setCampoActual] = useState(0)
-  const [mensajes, setMensajes] = useState<{ from: 'xoria' | 'user'; text: string }[]>([
-    { from: 'xoria', text: `Hola, soy XORIA. Voy a guiarte campo por campo para completar la solicitud oficial de **${tipoLabel}**. Cada respuesta se registra automáticamente en el formulario. ¿Empezamos?` },
-    { from: 'xoria', text: PREGUNTAS[allCampos[0]?.id] || '¿Cuál es el primer dato?' },
-  ])
+  const [mensajes, setMensajes] = useState<{ from: 'xoria' | 'user'; text: string }[]>([])
   const [inputUsuario, setInputUsuario] = useState('')
-  const [escuchando, setEscuchando] = useState(false)
   const [procesando, setProcesando] = useState(false)
+  const [voiceEnabled, setVoiceEnabled] = useState(true)
   const [docStatus, setDocStatus] = useState<Record<string, StatusDoc>>({
     id_oficial: 'pendiente', comprobante_dom: 'pendiente', rfc_doc: 'pendiente',
     solicitud: 'pendiente', consentimiento: 'pendiente', firma_digital: 'pendiente',
   })
   const chatRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const pendingRespuesta = useRef('')
+  const initialized = useRef(false)
 
   const completados = Object.keys(valores).length
   const porcentaje = Math.round((completados / totalCampos) * 100)
   const campoActualObj = allCampos[campoActual]
   const terminado = campoActual >= allCampos.length
+
+  // ── Hook de voz ─────────────────────────────────────────────────────────────
+  const { speak, stopSpeaking, toggleListen, isListening, isSpeaking, supported, transcript } =
+    useVoiceIO({
+      lang: 'es-MX',
+      rate: 0.9,
+      pitch: 1.1,
+      onTranscript: (text, isFinal) => {
+        setInputUsuario(text)
+        if (isFinal && text.trim()) {
+          pendingRespuesta.current = text.trim()
+        }
+      },
+      onSpeechEnd: () => {
+        // Al terminar de hablar el usuario → auto-enviar si hay texto
+        if (pendingRespuesta.current) {
+          const r = pendingRespuesta.current
+          pendingRespuesta.current = ''
+          setTimeout(() => responder(r), 150)
+        }
+      },
+    })
+
+  // ── Hablar mensaje XORIA ──────────────────────────────────────────────────
+  const xoriaHabla = useCallback((texto: string, luegoBotones = false) => {
+    if (!voiceEnabled) return
+    // Limpiar markdown antes de leer
+    const limpio = texto.replace(/\*\*(.*?)\*\*/g, '$1').replace(/[✓✅📋🎯⚡]/g, '')
+    speak(limpio, luegoBotones ? undefined : undefined)
+  }, [voiceEnabled, speak])
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+    const intro = `Hola, soy XORIA. Voy a guiarte campo por campo para completar la solicitud oficial de ${tipoLabel}. Cada respuesta se registra automáticamente en el formulario.`
+    const pregunta1 = PREGUNTAS[allCampos[0]?.id] || '¿Cuál es el primer dato?'
+    setMensajes([
+      { from: 'xoria', text: `Hola, soy XORIA. Voy a guiarte campo por campo para completar la solicitud oficial de **${tipoLabel}**. Cada respuesta se registra automáticamente en el formulario. ¿Empezamos?` },
+      { from: 'xoria', text: pregunta1 },
+    ])
+    // Hablar intro + primera pregunta
+    setTimeout(() => {
+      speak(`${intro} ¿Empezamos? ${pregunta1}`)
+    }, 600)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' })
@@ -266,13 +339,16 @@ function OriginacionContent() {
     })
   }, [porcentaje, valores])
 
+  // ── Responder campo ────────────────────────────────────────────────────────
   function responder(valor: string) {
     if (!valor.trim() || terminado) return
+    stopSpeaking()
     setProcesando(true)
     const nuevoValores = { ...valores, [campoActualObj.id]: valor }
     setValores(nuevoValores)
     setMensajes(prev => [...prev, { from: 'user', text: valor }])
     setInputUsuario('')
+    pendingRespuesta.current = ''
 
     setTimeout(() => {
       const sig = campoActual + 1
@@ -282,32 +358,40 @@ function OriginacionContent() {
       if (pct === 25) confirmacion += '\n\n📋 Ya llené el 25% de la solicitud.'
       if (pct === 50) confirmacion += '\n\n🎯 ¡Mitad completada! Seguimos.'
       if (pct === 75) confirmacion += '\n\n⚡ El 75% listo — casi terminamos.'
+
       if (sig >= allCampos.length) {
+        const final = '✅ ¡Solicitud completa al 100%! He llenado todos los campos del formato oficial. Con esta información ya puedo generar las opciones de cotización.'
         setMensajes(prev => [...prev,
           { from: 'xoria', text: confirmacion },
-          { from: 'xoria', text: '✅ **¡Solicitud completa al 100%!** He llenado todos los campos del formato oficial. Con esta información ya puedo generar las opciones de cotización comparables.' },
+          { from: 'xoria', text: final },
         ])
+        xoriaHabla(`Registrado. ${final}`)
         setCampoActual(sig)
       } else {
         const siguienteCampo = allCampos[sig]
+        const nextQ = PREGUNTAS[siguienteCampo.id] || `¿${siguienteCampo.label}?`
         setMensajes(prev => [...prev,
           { from: 'xoria', text: confirmacion },
-          { from: 'xoria', text: PREGUNTAS[siguienteCampo.id] || `¿${siguienteCampo.label}?` },
+          { from: 'xoria', text: nextQ },
         ])
+        xoriaHabla(nextQ)
         setCampoActual(sig)
       }
       setProcesando(false)
       setTimeout(() => inputRef.current?.focus(), 100)
-    }, 500)
+    }, 400)
   }
 
   function saltar() {
     if (terminado) return
+    stopSpeaking()
     const sig = campoActual + 1
+    const nextQ = sig < allCampos.length ? `OK, lo dejamos pendiente. ${PREGUNTAS[allCampos[sig].id] || '¿Siguiente dato?'}` : '✅ Solicitud completada (con algunos campos omitidos).'
     setMensajes(prev => [...prev,
       { from: 'user', text: '(campo omitido)' },
-      { from: 'xoria', text: sig < allCampos.length ? `OK, lo dejamos pendiente. ${PREGUNTAS[allCampos[sig].id] || '¿Siguiente dato?'}` : '✅ Solicitud completada (con algunos campos omitidos).' },
+      { from: 'xoria', text: nextQ },
     ])
+    if (sig < allCampos.length) xoriaHabla(nextQ)
     setCampoActual(sig)
   }
 
@@ -330,6 +414,13 @@ function OriginacionContent() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Toggle voz */}
+          <button onClick={() => { stopSpeaking(); setVoiceEnabled(v => !v) }}
+            title={voiceEnabled ? 'Desactivar voz XORIA' : 'Activar voz XORIA'}
+            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all', voiceEnabled ? 'bg-[#F7941D]/10 text-[#F7941D] border border-[#F7941D]/20' : 'bg-[#EFF2F9] text-[#9CA3AF] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.10)]')}>
+            {voiceEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
+            {voiceEnabled ? 'Voz activa' : 'Voz off'}
+          </button>
           <div className="flex items-center gap-2">
             <div className="text-right">
               <p className="text-[20px] font-bold text-[#F7941D] leading-none">{porcentaje}%</p>
@@ -354,20 +445,36 @@ function OriginacionContent() {
       {/* 3 columnas */}
       <div className="grid grid-cols-12 gap-3 flex-1 min-h-0">
 
-        {/* COL 1: Chat XORIA */}
+        {/* COL 1: Chat XORIA con voz */}
         <div className="col-span-12 lg:col-span-4 flex flex-col bg-[#EFF2F9] rounded-2xl shadow-[-4px_-4px_10px_#FAFBFF,4px_4px_10px_rgba(22,27,29,0.12)] overflow-hidden">
-          <div className="bg-gradient-to-r from-[#1A1F2B] to-[#2D3548] px-4 py-3 flex items-center gap-3 shrink-0">
-            <div className="w-8 h-8 rounded-full overflow-hidden">
-              <Image src="/Icono xoria.png" alt="XORIA" width={32} height={32} className="object-cover w-full h-full" />
-            </div>
-            <div>
-              <p className="text-[12px] text-white font-semibold">XORIA</p>
-              <div className="flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#69A481] animate-pulse" />
-                <p className="text-[10px] text-white/60">Motor de originación activo</p>
+          {/* Header del chat */}
+          <div className="bg-gradient-to-r from-[#1A1F2B] to-[#2D3548] px-4 py-3 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="relative w-8 h-8 rounded-full overflow-hidden">
+                <Image src="/Icono xoria.png" alt="XORIA" width={32} height={32} className="object-cover w-full h-full" />
+                {isSpeaking && (
+                  <div className="absolute inset-0 rounded-full border-2 border-[#F7941D] animate-ping opacity-75" />
+                )}
+              </div>
+              <div>
+                <p className="text-[12px] text-white font-semibold">XORIA</p>
+                <div className="flex items-center gap-1.5">
+                  <AudioWave active={isSpeaking} />
+                  <p className="text-[9px] text-white/50">
+                    {isSpeaking ? 'Hablando...' : isListening ? 'Escuchando...' : 'Motor de originación activo'}
+                  </p>
+                </div>
               </div>
             </div>
+            {/* Estado de voz */}
+            {isSpeaking && (
+              <button onClick={stopSpeaking} className="text-[9px] text-white/50 hover:text-white/80 transition-colors">
+                Silenciar
+              </button>
+            )}
           </div>
+
+          {/* Mensajes */}
           <div ref={chatRef} className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2.5 min-h-0">
             {mensajes.map((msg, i) => (
               <div key={i} className={cn('flex gap-2', msg.from === 'user' ? 'justify-end' : 'justify-start')}>
@@ -394,7 +501,18 @@ function OriginacionContent() {
                 </div>
               </div>
             )}
+            {/* Transcripción en vivo */}
+            {isListening && transcript && (
+              <div className="flex justify-end">
+                <div className="max-w-[82%] rounded-2xl rounded-tr-sm px-3 py-2.5 text-[12px] text-white/80 italic border border-[#F7941D]/30"
+                  style={{ background: 'rgba(247,148,29,0.15)' }}>
+                  {transcript}...
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Opciones rápidas tipo select */}
           {campoActualObj?.tipo === 'select' && !procesando && !terminado && (
             <div className="px-3 pb-2 flex flex-wrap gap-1.5 shrink-0">
               {campoActualObj.opciones?.map(op => (
@@ -405,39 +523,80 @@ function OriginacionContent() {
               ))}
             </div>
           )}
+
+          {/* Input + botones de voz */}
           <div className="px-3 pb-3 shrink-0">
-            <div className="flex gap-1.5 bg-white/70 rounded-xl border border-[#E5E7EB] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
+            {/* Barra de input */}
+            <div className={cn('flex gap-1.5 rounded-xl border overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-all',
+              isListening ? 'bg-[#FFF8F0] border-[#F7941D]/40' : 'bg-white/70 border-[#E5E7EB]')}>
               {campoActualObj?.tipo === 'date' ? (
                 <input type="date" ref={inputRef as React.RefObject<HTMLInputElement>}
                   className="flex-1 px-3 py-2.5 text-[12px] text-[#1A1F2B] bg-transparent outline-none"
+                  value={inputUsuario}
                   onChange={e => setInputUsuario(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && responder(inputUsuario)} />
               ) : (
                 <input type="text" ref={inputRef} value={inputUsuario}
                   onChange={e => setInputUsuario(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && responder(inputUsuario)}
-                  placeholder={terminado ? 'Solicitud completa' : campoActualObj?.placeholder || 'Escribe tu respuesta...'}
+                  placeholder={
+                    isListening ? '🎤 Escuchando...'
+                    : terminado ? 'Solicitud completa'
+                    : campoActualObj?.placeholder || 'Escribe o habla...'
+                  }
                   disabled={terminado}
                   className="flex-1 px-3 py-2.5 text-[12px] text-[#1A1F2B] bg-transparent outline-none placeholder-[#D1D5DB] disabled:opacity-50" />
               )}
-              <button onClick={() => setEscuchando(!escuchando)}
-                className={cn('px-2.5 transition-colors', escuchando ? 'text-[#7C1F31]' : 'text-[#9CA3AF] hover:text-[#F7941D]')}>
-                {escuchando ? <MicOff size={14} /> : <Mic size={14} />}
-              </button>
+
+              {/* Botón micrófono */}
+              {supported && (
+                <button
+                  onClick={toggleListen}
+                  disabled={terminado || isSpeaking}
+                  title={isListening ? 'Detener grabación' : 'Hablar respuesta'}
+                  className={cn('px-3 flex items-center justify-center transition-all relative', isListening ? 'text-[#7C1F31]' : 'text-[#9CA3AF] hover:text-[#F7941D]')}>
+                  {isListening ? (
+                    <span className="relative flex items-center justify-center">
+                      <span className="absolute w-8 h-8 rounded-full bg-[#7C1F31]/10 animate-ping" />
+                      <MicOff size={15} />
+                    </span>
+                  ) : <Mic size={15} />}
+                </button>
+              )}
+
               <button onClick={() => responder(inputUsuario)} disabled={!inputUsuario.trim() || terminado}
                 className="px-2.5 text-[#F7941D] hover:text-[#e08019] disabled:opacity-30 transition-colors">
                 <Send size={14} />
               </button>
             </div>
-            {!terminado && (
-              <button onClick={saltar} className="mt-1 text-[10px] text-[#9CA3AF] hover:text-[#6B7280] w-full text-center transition-colors">
-                Omitir este campo →
-              </button>
-            )}
+
+            {/* Estado de voz y omitir */}
+            <div className="mt-1.5 flex items-center justify-between">
+              {isListening ? (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#7C1F31] animate-pulse" />
+                  <span className="text-[10px] text-[#7C1F31] font-semibold">Grabando · habla ahora</span>
+                </div>
+              ) : isSpeaking ? (
+                <div className="flex items-center gap-1.5">
+                  <AudioWave active />
+                  <span className="text-[10px] text-[#F7941D]">XORIA hablando...</span>
+                </div>
+              ) : (
+                <span className="text-[10px] text-[#9CA3AF]">
+                  {supported ? '🎤 Toca el mic o escribe' : 'Escribe tu respuesta'}
+                </span>
+              )}
+              {!terminado && (
+                <button onClick={saltar} className="text-[10px] text-[#9CA3AF] hover:text-[#6B7280] transition-colors">
+                  Omitir →
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* COL 2: Solicitud llenándose */}
+        {/* COL 2: Solicitud llenándose en tiempo real */}
         <div className="col-span-12 lg:col-span-5 flex flex-col bg-[#EFF2F9] rounded-2xl shadow-[-4px_-4px_10px_#FAFBFF,4px_4px_10px_rgba(22,27,29,0.12)] overflow-hidden">
           <div className="px-4 py-3 border-b border-[#E5E7EB] shrink-0 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -472,16 +631,25 @@ function OriginacionContent() {
                     {grupo.campos.map(campo => {
                       const val = valores[campo.id]
                       const esActivo = campo.id === campoActualObj?.id
+                      const transcribiendo = esActivo && isListening
                       return (
                         <div key={campo.id} className={cn('flex items-center justify-between px-3 py-1.5 transition-colors', esActivo ? 'bg-[#FFF8F0]' : 'bg-white/25')}>
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {val ? <CheckCircle2 size={11} className="text-[#69A481] shrink-0" /> : esActivo ? <div className="w-2.5 h-2.5 rounded-full bg-[#F7941D] animate-pulse shrink-0" /> : <div className="w-2.5 h-2.5 rounded-full border border-[#D1D5DB] shrink-0" />}
+                            {val ? <CheckCircle2 size={11} className="text-[#69A481] shrink-0" />
+                              : esActivo ? <div className="w-2.5 h-2.5 rounded-full bg-[#F7941D] animate-pulse shrink-0" />
+                              : <div className="w-2.5 h-2.5 rounded-full border border-[#D1D5DB] shrink-0" />}
                             <span className="text-[10px] text-[#6B7280] truncate">{campo.label}</span>
                           </div>
                           <div className="shrink-0 ml-2 max-w-[130px]">
-                            {val ? <span className="text-[10px] text-[#1A1F2B] font-medium truncate block text-right">{val}</span>
-                              : esActivo ? <span className="text-[9px] text-[#F7941D] font-semibold">completando...</span>
-                              : <span className="text-[9px] text-[#D1D5DB]">—</span>}
+                            {transcribiendo && transcript ? (
+                              <span className="text-[10px] text-[#F7941D] italic truncate block text-right">{transcript}</span>
+                            ) : val ? (
+                              <span className="text-[10px] text-[#1A1F2B] font-medium truncate block text-right">{val}</span>
+                            ) : esActivo ? (
+                              <span className="text-[9px] text-[#F7941D] font-semibold">completando...</span>
+                            ) : (
+                              <span className="text-[9px] text-[#D1D5DB]">—</span>
+                            )}
                           </div>
                         </div>
                       )
@@ -524,14 +692,17 @@ function OriginacionContent() {
                 <Image src="/Icono xoria.png" alt="X" width={14} height={14} className="object-cover rounded-full mt-0.5 shrink-0" />
                 <p className="text-[10px] text-white/70 leading-relaxed">
                   {terminado ? '✅ Solicitud completa. Lista para cotización.'
-                    : porcentaje >= 75 ? `Faltan ${totalCampos - completados} campos. ¡Casi listo!`
-                    : porcentaje >= 50 ? `${completados} campos listos. Seguimos.`
+                    : isListening ? '🎤 Grabando voz del asegurado...'
+                    : isSpeaking ? '🔊 XORIA hablando...'
+                    : porcentaje >= 75 ? `Faltan ${totalCampos - completados} campos.`
+                    : porcentaje >= 50 ? `${completados} campos listos.`
                     : porcentaje >= 25 ? `Ya llené ${completados} de ${totalCampos} campos.`
                     : 'Iniciando captura guiada de datos.'}
                 </p>
               </div>
             </div>
           </div>
+
           <div className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-4px_-4px_10px_#FAFBFF,4px_4px_10px_rgba(22,27,29,0.12)] flex-1">
             <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-2.5">Expediente</p>
             <div className="flex flex-col gap-2">
@@ -556,6 +727,7 @@ function OriginacionContent() {
               })}
             </div>
           </div>
+
           {puedeIrCotizacion && (
             <button onClick={() => router.push(`/agent/nueva-venta/cotizacion?tipo=${tipo}`)}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white text-[12px] font-semibold hover:scale-[1.02] transition-all"

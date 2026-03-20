@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useCallback } from 'react'
 import { MOCK_SINIESTROS, MOCK_POLICIES } from '@/data/mock'
-import { AlertTriangle, CheckCircle, Clock, FileText, Upload, X, Plus, Camera, Scan, Loader2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Clock, FileText, Upload, X, Plus, Camera, Scan, Loader2, Download, ExternalLink, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ClientLink } from '@/components/ui'
 
@@ -22,6 +22,8 @@ export default function SiniestrosPage() {
   const [selected, setSelected] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
+  const [docModal, setDocModal] = useState<string | null>(null)
+  const [descargado, setDescargado] = useState<string | null>(null)
 
   // — Modal nuevo siniestro —
   const [ocrStep, setOcrStep] = useState<'idle' | 'uploading' | 'scanning' | 'done'>('idle')
@@ -259,7 +261,7 @@ export default function SiniestrosPage() {
                   <div key={doc} className="flex items-center gap-2 bg-white/40 rounded-xl p-2.5">
                     <FileText size={13} className="text-[#9CA3AF]" />
                     <p className="text-[12px] text-[#6B7280] flex-1">{doc}</p>
-                    <button className="text-[10px] text-[#F7941D] hover:underline">Ver</button>
+                    <button onClick={() => setDocModal(doc)} className="text-[10px] text-[#F7941D] hover:underline font-semibold">Ver</button>
                   </div>
                 ))}
                 <button className="flex items-center gap-2 text-[12px] text-[#9CA3AF] hover:text-[#F7941D] transition-colors mt-1">
@@ -271,6 +273,63 @@ export default function SiniestrosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal visor de documento */}
+      {docModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(26,31,43,0.6)', backdropFilter: 'blur(12px)' }} onClick={() => setDocModal(null)}>
+          <div className="w-full max-w-lg bg-[#EFF2F9] rounded-3xl shadow-[0_24px_80px_rgba(22,27,29,0.4)] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-[#1A1F2B] to-[#2D3548] px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={15} className="text-[#F7941D]" />
+                <p className="text-white font-bold text-[13px] truncate">{docModal}</p>
+              </div>
+              <button onClick={() => setDocModal(null)} className="w-7 h-7 flex items-center justify-center rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors"><X size={14} /></button>
+            </div>
+            {/* Simulación de visor PDF */}
+            <div className="mx-5 my-4 bg-white rounded-2xl shadow-[inset_-2px_-2px_5px_#f0f0f0,inset_2px_2px_5px_rgba(0,0,0,0.07)] overflow-hidden" style={{ minHeight: 260 }}>
+              <div className="bg-[#F3F4F6] px-4 py-2 flex items-center gap-2 border-b border-[#E5E7EB]">
+                <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#FC5C5C]" /><div className="w-2.5 h-2.5 rounded-full bg-[#FDBC40]" /><div className="w-2.5 h-2.5 rounded-full bg-[#34C749]" /></div>
+                <p className="text-[10px] text-[#9CA3AF] flex-1 text-center truncate">{docModal}</p>
+                <ExternalLink size={11} className="text-[#9CA3AF]" />
+              </div>
+              <div className="p-5 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] text-[#9CA3AF] uppercase tracking-widest mb-0.5">DOCUMENTO OFICIAL</p>
+                    <p className="text-[16px] font-bold text-[#1A1F2B]">{docModal.replace('.pdf', '').replace('.zip', '')}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-[#7C1F31]/10 rounded-xl flex items-center justify-center">
+                    <AlertTriangle size={16} className="text-[#7C1F31]" />
+                  </div>
+                </div>
+                <div className="border-t border-[#E5E7EB] pt-3 flex flex-col gap-1.5">
+                  {['Asegurado: Ana López García', 'Póliza: AUTO-2024-0291', 'Siniestro: SIN-2024-001', 'Fecha: 15 Mar 2026', 'Aseguradora: GNP Seguros'].map(line => (
+                    <div key={line} className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-[#9CA3AF]" />
+                      <p className="text-[11px] text-[#6B7280]">{line}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-[#F9FAFB] rounded-xl p-3 mt-1">
+                  <div className="h-2 bg-[#E5E7EB] rounded-full mb-2 w-full" />
+                  <div className="h-2 bg-[#E5E7EB] rounded-full mb-2 w-4/5" />
+                  <div className="h-2 bg-[#E5E7EB] rounded-full mb-2 w-3/4" />
+                  <div className="h-2 bg-[#E5E7EB] rounded-full w-1/2" />
+                </div>
+                <p className="text-[10px] text-[#9CA3AF] text-center italic">Documento simulado para fines de demostración</p>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={() => setDocModal(null)} className="flex-1 py-2.5 rounded-xl text-[12px] font-semibold text-[#6B7280] bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.10)] hover:text-[#1A1F2B] transition-all">Cerrar</button>
+              <button onClick={() => { setDescargado(docModal); setTimeout(() => setDescargado(null), 3000) }}
+                className="flex-1 py-2.5 rounded-xl text-[12px] font-semibold text-white flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
+                style={{ background: descargado === docModal ? 'linear-gradient(135deg,#69A481,#4d8060)' : 'linear-gradient(135deg,#1A1F2B,#2D3548)' }}>
+                {descargado === docModal ? <><Check size={12} /> Descargado</> : <><Download size={12} /> Descargar</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal nuevo siniestro con OCR */}
       {showForm && (

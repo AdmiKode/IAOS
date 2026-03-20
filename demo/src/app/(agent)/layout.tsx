@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users, FileText, MessageSquare, Calendar,
   BarChart3, Settings, LogOut, Bot, Phone, Layers, ChevronRight,
   Bell, Search, FilePlus, RefreshCw, Menu, X, AlertTriangle,
-  CreditCard, BookOpen, Shield, Tag, Brain, Crown, TrendingUp, Mail, Zap
+  CreditCard, BookOpen, Shield, Tag, Brain, Crown, TrendingUp, Mail, Zap, Users2
 } from 'lucide-react'
 import { NotificationsPanel } from '@/components/agent/NotificationsPanel'
 
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { icon: Zap, label: 'Nueva Venta IA', href: '/agent/nueva-venta', highlight: true },
   { icon: LayoutDashboard, label: 'Dashboard', href: '/agent/dashboard' },
   { icon: Users, label: 'Clientes', href: '/agent/clientes' },
+  { icon: Users2, label: 'Equipo', href: '/agent/equipo', roles: ['admin', 'broker', 'promotoria'] },
   { icon: Layers, label: 'Pipeline', href: '/agent/pipeline' },
   { icon: FileText, label: 'Pólizas', href: '/agent/polizas' },
   { icon: FilePlus, label: 'Emisión', href: '/agent/emision' },
@@ -82,9 +83,14 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
 
   // Shared nav list (used both in desktop panel and mobile drawer)
   function NavList({ onItemClick }: { onItemClick?: () => void }) {
+    const visibleItems = NAV_ITEMS.filter(item => {
+      const roles = (item as { roles?: string[] }).roles
+      if (!roles) return true
+      return user?.role && roles.includes(user.role)
+    })
     return (
       <>
-        {NAV_ITEMS.map(item => {
+        {visibleItems.map(item => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           const isHighlight = (item as { highlight?: boolean }).highlight
           return (

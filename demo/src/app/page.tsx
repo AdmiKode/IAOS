@@ -81,10 +81,18 @@ export default function IntroPage() {
       />
 
       {/* ── Marca de agua centrada ── */}
-      <div className="absolute top-0 left-0 w-full z-10 flex justify-center pt-7 pointer-events-none select-none">
+      <div className="absolute top-0 left-0 w-full z-10 flex justify-center pt-6 pointer-events-none select-none">
         <span
-          className="text-white/18 text-sm font-[Questrial] tracking-[0.45em] uppercase whitespace-nowrap"
-          style={{ fontFamily: 'Questrial, sans-serif', letterSpacing: '0.45em' }}
+          style={{
+            fontFamily: 'Questrial, sans-serif',
+            letterSpacing: '0.35em',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.55)',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            textShadow: '0 1px 6px rgba(0,0,0,0.18)',
+          }}
         >
           Insurance Agent OS
         </span>

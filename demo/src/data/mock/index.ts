@@ -2,15 +2,77 @@ import { MockUser, Policy, Lead, KPI, Ticket, Payment, AgendaItem, ChartDataPoin
 
 // ─── USUARIOS DEMO ───────────────────────────────────────────────────────────
 export const DEMO_USERS: MockUser[] = [
-  { id: 'u1', name: 'Carlos Mendoza', email: 'agente@demo.com', role: 'agent', agency: 'Despacho Seguros Premier' },
-  { id: 'u2', name: 'Patricia Garza', email: 'admin@demo.com', role: 'admin', agency: 'Despacho Seguros Premier' },
+  { id: 'u1', name: 'Carlos Mendoza', email: 'agente@demo.com', role: 'agent', agency: 'Seguros Premier' },
+  { id: 'u2', name: 'Patricia Garza', email: 'admin@demo.com', role: 'admin', agency: 'Seguros Premier' },
   { id: 'u3', name: 'Ana López', email: 'cliente@demo.com', role: 'client' },
+  { id: 'u4', name: 'Marco Reyes', email: 'broker@demo.com', role: 'broker' as UserRole, agency: 'Reyes Broker & Asociados' },
+  { id: 'u5', name: 'Sandra Vidal', email: 'promotoria@demo.com', role: 'promotoria' as UserRole, agency: 'Promotoria Vidal Grupo' },
 ]
 
 export const DEMO_CREDENTIALS = [
-  { email: 'agente@demo.com', password: 'demo1234', role: 'agent', redirect: '/agent/dashboard' },
-  { email: 'admin@demo.com', password: 'demo1234', role: 'admin', redirect: '/agent/dashboard' },
-  { email: 'cliente@demo.com', password: 'demo1234', role: 'client', redirect: '/client/inicio' },
+  { email: 'agente@demo.com',     password: 'demo1234', role: 'agent',      redirect: '/agent/dashboard' },
+  { email: 'admin@demo.com',      password: 'demo1234', role: 'admin',      redirect: '/agent/dashboard' },
+  { email: 'cliente@demo.com',    password: 'demo1234', role: 'client',     redirect: '/client/inicio' },
+  { email: 'broker@demo.com',     password: 'demo1234', role: 'broker',     redirect: '/agent/dashboard' },
+  { email: 'promotoria@demo.com', password: 'demo1234', role: 'promotoria', redirect: '/agent/equipo' },
+]
+
+// ─── EQUIPO DE AGENTES (vista promotoria/broker/admin) ───────────────────────
+export const MOCK_AGENTES_EQUIPO = [
+  {
+    id: 'ag1', name: 'Carlos Mendoza', email: 'agente@demo.com', cedula: 'CNSF-MX-2019-04521',
+    status: 'activo', plan: 'Profesional', avatar: 'CM',
+    polizasActivas: 247, primaTotal: 184320, leads: 38, tasaCierre: 67,
+    comisionMes: 27648, metaMes: 200000, avanceMeta: 92,
+    ramos: ['GMM', 'Auto', 'Vida', 'Daños'],
+    aseguradoras: ['GNP', 'AXA', 'Qualitas', 'MAPFRE'],
+    ultimoAcceso: '2026-03-19 08:02',
+  },
+  {
+    id: 'ag2', name: 'Diego Pacheco', email: 'dpacheco@demo.com', cedula: 'CNSF-MX-2021-07834',
+    status: 'activo', plan: 'Básico', avatar: 'DP',
+    polizasActivas: 89, primaTotal: 64200, leads: 14, tasaCierre: 52,
+    comisionMes: 9630, metaMes: 80000, avanceMeta: 80,
+    ramos: ['Auto', 'Hogar'],
+    aseguradoras: ['Qualitas', 'HDI'],
+    ultimoAcceso: '2026-03-18 17:30',
+  },
+  {
+    id: 'ag3', name: 'Lucía Morán', email: 'lmoran@demo.com', cedula: 'CNSF-MX-2020-06120',
+    status: 'activo', plan: 'Profesional', avatar: 'LM',
+    polizasActivas: 178, primaTotal: 142800, leads: 22, tasaCierre: 71,
+    comisionMes: 21420, metaMes: 150000, avanceMeta: 95,
+    ramos: ['GMM', 'Vida'],
+    aseguradoras: ['GNP', 'Metlife'],
+    ultimoAcceso: '2026-03-19 07:45',
+  },
+  {
+    id: 'ag4', name: 'Héctor Ríos', email: 'hrios@demo.com', cedula: 'CNSF-MX-2022-09003',
+    status: 'inactivo', plan: 'Básico', avatar: 'HR',
+    polizasActivas: 34, primaTotal: 21500, leads: 5, tasaCierre: 38,
+    comisionMes: 3225, metaMes: 50000, avanceMeta: 43,
+    ramos: ['Auto'],
+    aseguradoras: ['Qualitas'],
+    ultimoAcceso: '2026-03-10 11:00',
+  },
+  {
+    id: 'ag5', name: 'Valeria Castillo', email: 'vcastillo@demo.com', cedula: 'CNSF-MX-2023-11245',
+    status: 'activo', plan: 'Empresarial', avatar: 'VC',
+    polizasActivas: 312, primaTotal: 298400, leads: 51, tasaCierre: 74,
+    comisionMes: 44760, metaMes: 300000, avanceMeta: 99,
+    ramos: ['GMM', 'GMM Colectivo', 'Vida', 'Daños', 'RC'],
+    aseguradoras: ['GNP', 'AXA', 'Metlife', 'MAPFRE'],
+    ultimoAcceso: '2026-03-19 09:00',
+  },
+]
+
+// ─── HISTORIAL PAGOS DETALLADO (con método y destino) ────────────────────────
+export const MOCK_PAYMENT_HISTORY = [
+  { id: 'ph1', policyNumber: 'GNP-2025-001234', clientName: 'Ana López', concepto: 'GMM Individual — Marzo 2026', monto: 8500, fecha: '2026-03-01', metodoPago: 'Transferencia SPEI', destino: 'Cuenta aseguradora GNP', banco: 'BBVA', referencia: 'SPEI-GNP-20260301-0042', status: 'confirmado', comprobante: true },
+  { id: 'ph2', policyNumber: 'GNP-2025-001234', clientName: 'Ana López', concepto: 'GMM Individual — Febrero 2026', monto: 8500, fecha: '2026-02-01', metodoPago: 'Tarjeta débito', destino: 'Cuenta promotoria Seguros Premier', banco: 'Santander', referencia: 'TDC-SP-20260201-8841', status: 'confirmado', comprobante: true },
+  { id: 'ph3', policyNumber: 'QUA-2026-008912', clientName: 'Laura Vega', concepto: 'Auto Amplia — Marzo 2026', monto: 1420, fecha: '2026-03-10', metodoPago: 'Efectivo', destino: 'Cuenta promotoria Seguros Premier', banco: 'Caja', referencia: 'EFV-20260310-001', status: 'confirmado', comprobante: false },
+  { id: 'ph4', policyNumber: 'AXA-2025-000345', clientName: 'Empresa XYZ', concepto: 'GMM Colectivo — Febrero 2026', monto: 145000, fecha: '2026-02-01', metodoPago: 'Transferencia SPEI', destino: 'Cuenta aseguradora AXA', banco: 'Banamex', referencia: 'SPEI-AXA-20260201-1190', status: 'confirmado', comprobante: true },
+  { id: 'ph5', policyNumber: 'MET-2026-009012', clientName: 'Roberto Sánchez', concepto: 'Vida Temporal — Primer recibo', monto: 4200, fecha: '2026-04-01', metodoPago: 'Domiciliación', destino: 'Cuenta aseguradora Metlife', banco: 'HSBC', referencia: 'DOM-MET-20260401-3310', status: 'pendiente', comprobante: false },
 ]
 
 // ─── KPIs AGENTE ─────────────────────────────────────────────────────────────
