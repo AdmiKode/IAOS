@@ -7,6 +7,7 @@ import {
   Banknote, Building2, Landmark, Smartphone, Check, Info, Download
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { exportCSV } from '@/lib/exportCSV'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { ClientLink } from '@/components/ui'
 
@@ -286,10 +287,17 @@ export default function CobranzaPage() {
           <p className="text-[10px] text-[#F7941D] font-bold tracking-[0.15em] uppercase mb-0.5">Módulo 11</p>
           <h1 className="text-[22px] text-[#1A1F2B] font-bold">Cobranza y recibos</h1>
         </div>
-        <button onClick={() => setReglaModal(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-semibold text-[#6B7280] bg-[#EFF2F9] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#F7941D] transition-colors">
-          <Settings2 size={13} /> Regla recordatorio
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportCSV(MOCK_PAYMENTS.map(p => ({ 'Cliente': p.clientName, 'Concepto': p.concept, 'Monto': p.amount, 'Vencimiento': p.dueDate, 'Estatus': p.status })), 'cobranza')}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-semibold text-[#6B7280] bg-[#EFF2F9] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#F7941D] transition-colors">
+            <Download size={13} /> CSV
+          </button>
+          <button onClick={() => setReglaModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-semibold text-[#6B7280] bg-[#EFF2F9] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#F7941D] transition-colors">
+            <Settings2 size={13} /> Regla recordatorio
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}

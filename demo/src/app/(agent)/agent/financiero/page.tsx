@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { TrendingUp, TrendingDown, DollarSign, FileText, Download, Plus, X, CheckCircle, Clock, AlertCircle, BarChart2, PieChart, CreditCard, Receipt, Building2, ChevronRight, Filter, Bell, MessageSquare, Phone, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { exportCSV } from '@/lib/exportCSV'
 import { MOCK_POLICIES, MOCK_PAYMENTS, MOCK_CHART_DATA } from '@/data/mock'
 
 type Tab = 'resumen' | 'comisiones' | 'cfdi' | 'flujo'
@@ -75,10 +76,17 @@ export default function FinancieroPage() {
           <h1 className="text-[20px] text-[#1A1F2B] tracking-wide">Módulo Financiero</h1>
           <p className="text-[13px] text-[#9CA3AF] mt-0.5">Comisiones, CFDI, flujo de caja y rentabilidad</p>
         </div>
-        <button onClick={() => setNewCfdi(true)} className="flex items-center gap-2 h-10 px-4 bg-[#F7941D] rounded-xl text-white text-[13px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
-          <Plus size={15} />
-          Nueva factura
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportCSV(COMISIONES.map(c => ({ 'Póliza': c.poliza, 'Cliente': c.cliente, 'Tipo': c.tipo, 'Prima': c.prima, '%': c.porcentaje, 'Comisión': c.monto, 'Estatus': c.status, 'Fecha': c.fecha, 'Aseguradora': c.aseguradora })), 'comisiones')}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-xl text-[12px] text-[#6B7280] bg-[#EFF2F9] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#1A1F2B] transition-colors">
+            <Download size={13} /> CSV
+          </button>
+          <button onClick={() => setNewCfdi(true)} className="flex items-center gap-2 h-10 px-4 bg-[#F7941D] rounded-xl text-white text-[13px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
+            <Plus size={15} />
+            Nueva factura
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

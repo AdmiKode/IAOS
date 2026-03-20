@@ -1,8 +1,9 @@
 'use client'
 import { MOCK_POLICIES } from '@/data/mock'
 import { Badge } from '@/components/ui'
-import { FileText, Plus, Search, X, Upload, Scan, CheckCircle, Loader2, FileCheck, TrendingUp, Clock, PieChart, DollarSign } from 'lucide-react'
+import { FileText, Plus, Search, X, Upload, Scan, CheckCircle, Loader2, FileCheck, TrendingUp, Clock, PieChart, DollarSign, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { exportCSV } from '@/lib/exportCSV'
 import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { ClientLink } from '@/components/ui'
@@ -165,10 +166,17 @@ export default function PolizasPage() {
           <h1 className="text-[20px] text-[#1A1F2B] tracking-wide">Pólizas</h1>
           <p className="text-[13px] text-[#9CA3AF] mt-0.5">{MOCK_POLICIES.length} pólizas en cartera</p>
         </div>
-        <button onClick={openModal} className="flex items-center gap-2 h-10 px-4 bg-[#F7941D] rounded-xl text-white text-[13px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
-          <Plus size={15} />
-          Nueva póliza
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportCSV(MOCK_POLICIES.map(p => ({ 'No. Póliza': p.policyNumber, 'Asegurado': p.clientName, 'Tipo': p.type, 'Aseguradora': p.insurer, 'Prima': p.premium, 'Inicio': p.startDate, 'Vencimiento': p.endDate, 'Estatus': p.status })), 'polizas')}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-xl text-[12px] text-[#6B7280] bg-[#EFF2F9] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#1A1F2B] transition-colors">
+            <Download size={13} /> Exportar CSV
+          </button>
+          <button onClick={openModal} className="flex items-center gap-2 h-10 px-4 bg-[#F7941D] rounded-xl text-white text-[13px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
+            <Plus size={15} />
+            Nueva póliza
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -210,7 +218,7 @@ export default function PolizasPage() {
                   <Badge label={status.label} variant={status.variant} size="sm" />
                 </div>
                 <p className="text-[12px] text-[#6B7280] truncate">{policy.type} · {policy.insurer}</p>
-                <p className="text-[11px] text-[#9CA3AF] mt-0.5">{policy.policyNumber} · Vence {policy.endDate}</p>
+                <p className="text-[11px] text-[#9CA3AF] mt-0.5">{policy.policyNumber} · {policy.startDate} → {policy.endDate}</p>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-[14px] text-[#F7941D]">{policy.premium}</p>

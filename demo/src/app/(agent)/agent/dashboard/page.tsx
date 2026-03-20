@@ -39,7 +39,7 @@ const KPI_DETAIL: Record<string, {
     rows: MOCK_POLICIES.filter(p => p.status === 'activa' || p.status === 'vigente').slice(0, 6).map(p => ({
       label: p.clientName,
       value: p.type,
-      sub: p.insurer + ' · ' + p.policyNumber,
+      sub: p.insurer + ' · ' + p.policyNumber + ' · ' + p.startDate + ' → ' + p.endDate,
       status: p.status,
     })),
   },
@@ -51,7 +51,7 @@ const KPI_DETAIL: Record<string, {
     rows: MOCK_POLICIES.filter(p => p.status === 'activa' || p.status === 'vigente').slice(0, 6).map(p => ({
       label: p.clientName,
       value: p.premium,
-      sub: p.type + ' · ' + p.insurer,
+      sub: p.type + ' · ' + p.insurer + ' · ' + p.startDate + ' → ' + p.endDate,
       status: p.status,
     })),
   },
@@ -79,7 +79,7 @@ const KPI_DETAIL: Record<string, {
     }).slice(0, 6).map(p => ({
       label: p.clientName,
       value: p.endDate,
-      sub: p.type + ' · ' + p.insurer,
+      sub: p.type + ' · ' + p.insurer + ' · Inicio: ' + p.startDate,
       status: p.status,
     })),
   },
@@ -261,6 +261,154 @@ function PipelineColumn({ stage }: { stage: string }) {
           <span className="text-[11px] text-[#D1D5DB]">Vacío</span>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── CARRIER CORE DASHBOARD (broker) ────────────────────────────────────────
+
+const CORE_MODULES = [
+  {
+    id: 'underwriting',
+    label: 'Underwriting',
+    desc: 'Bandeja de suscripción',
+    route: '/agent/aseguradora/underwriting',
+    color: '#F7941D',
+    kpiVal: '3',
+    kpiLabel: 'pendientes',
+    icon: FileText,
+  },
+  {
+    id: 'polizas',
+    label: 'Policy Admin',
+    desc: 'Cartera y endosos',
+    route: '/agent/aseguradora/polizas',
+    color: '#69A481',
+    kpiVal: '8',
+    kpiLabel: 'pólizas activas',
+    icon: CreditCard,
+  },
+  {
+    id: 'billing',
+    label: 'Billing',
+    desc: 'Primas y comisiones',
+    route: '/agent/aseguradora/billing',
+    color: '#3B82F6',
+    kpiVal: '$42,225',
+    kpiLabel: 'por pagar',
+    icon: BarChart3,
+  },
+  {
+    id: 'siniestros',
+    label: 'Claims',
+    desc: 'Gestión de siniestros',
+    route: '/agent/aseguradora/siniestros',
+    color: '#7C1F31',
+    kpiVal: '2',
+    kpiLabel: 'abiertos',
+    icon: AlertTriangle,
+  },
+]
+
+function CarrierCoreDashboard({ greeting, name, agency }: { greeting: string; name?: string; agency?: string }) {
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] text-[#F7941D] font-semibold tracking-[0.2em] uppercase">Core Asegurador</span>
+          </div>
+          <h1 className="text-[22px] text-[#1A1F2B] font-bold tracking-tight">{greeting}, {name?.split(' ')[0]}</h1>
+          <p className="text-[13px] text-[#9CA3AF] mt-0.5">
+            {agency && <span className="text-[#F7941D]">{agency} · </span>}
+            {new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </div>
+        <Link href="/agent/xoria">
+          <button className="flex items-center gap-2 h-10 px-5 rounded-2xl text-white text-[13px] font-semibold"
+            style={{ background: 'linear-gradient(135deg,#F7941D,#e08019)', boxShadow: '0 6px 20px rgba(247,148,29,0.4)' }}>
+            Consultar XORIA <ArrowRight size={13} />
+          </button>
+        </Link>
+      </div>
+
+      {/* KPI resumen */}
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { label: 'Suscripciones pendientes', val: '3', color: '#F7941D', icon: FileText },
+          { label: 'Pólizas activas',          val: '8', color: '#69A481', icon: CreditCard },
+          { label: 'Primas por cobrar',        val: '$42,225', color: '#3B82F6', icon: BarChart3 },
+          { label: 'Siniestros abiertos',      val: '2', color: '#7C1F31', icon: AlertTriangle },
+        ].map(k => {
+          const KIcon = k.icon
+          return (
+            <div key={k.label} className="bg-[#EFF2F9] rounded-2xl px-5 py-4 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.14)] flex flex-col gap-2">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: k.color + '18' }}>
+                <KIcon size={15} style={{ color: k.color }} />
+              </div>
+              <p className="text-[22px] font-bold leading-none" style={{ color: k.color }}>{k.val}</p>
+              <p className="text-[11px] text-[#9CA3AF] leading-tight">{k.label}</p>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Módulos */}
+      <div>
+        <p className="text-[11px] text-[#9CA3AF] uppercase tracking-widest mb-3">Módulos del sistema</p>
+        <div className="grid grid-cols-2 gap-4">
+          {CORE_MODULES.map(m => {
+            const MIcon = m.icon
+            return (
+              <Link key={m.id} href={m.route}>
+                <div className="group bg-[#EFF2F9] rounded-2xl p-5 shadow-[-6px_-6px_14px_#FAFBFF,6px_6px_14px_rgba(22,27,29,0.14)] hover:shadow-[-8px_-8px_18px_#FAFBFF,8px_8px_18px_rgba(22,27,29,0.18)] transition-all cursor-pointer flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: m.color + '18' }}>
+                      <MIcon size={18} style={{ color: m.color }} />
+                    </div>
+                    <ChevronRight size={14} className="text-[#D1D5DB] group-hover:text-[#9CA3AF] transition-colors" />
+                  </div>
+                  <div>
+                    <p className="text-[16px] text-[#1A1F2B] font-bold leading-tight">{m.label}</p>
+                    <p className="text-[12px] text-[#9CA3AF] mt-0.5">{m.desc}</p>
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-[22px] font-bold leading-none" style={{ color: m.color }}>{m.kpiVal}</p>
+                      <p className="text-[10px] text-[#9CA3AF] mt-0.5">{m.kpiLabel}</p>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-xl text-[11px] font-semibold text-white"
+                      style={{ background: m.color, boxShadow: `0 4px 12px ${m.color}40` }}>
+                      Abrir
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* XORIA briefing */}
+      <div className="bg-[#1A1F2B] rounded-2xl p-5 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full overflow-hidden">
+            <Image src="/Icono xoria.png" alt="XORIA" width={28} height={28} className="object-cover w-full h-full" />
+          </div>
+          <p className="text-[13px] text-white font-semibold">Briefing de XORIA</p>
+        </div>
+        <p className="text-[12px] text-[#9CA3AF] leading-relaxed">
+          Hay <span className="text-[#F7941D] font-semibold">3 solicitudes de suscripción</span> pendientes de evaluación.
+          Una póliza de GMM colectivo vence en <span className="text-[#F7941D] font-semibold">7 días</span>.
+          Comisiones por <span className="text-[#69A481] font-semibold">$8,450</span> listas para nómina de esta semana.
+        </p>
+        <Link href="/agent/xoria">
+          <button className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#F7941D] rounded-xl text-white text-[13px] font-semibold hover:bg-[#e08019] transition-colors">
+            Preguntar a XORIA <ArrowRight size={13} />
+          </button>
+        </Link>
+      </div>
     </div>
   )
 }
@@ -497,9 +645,12 @@ export default function AgentDashboard() {
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches'
   const [activeKpi, setActiveKpi] = useState<typeof MOCK_KPIS[0] | null>(null)
 
-  // ── Vista diferenciada para Broker y Promotoría ──────────────────────────
-  if (user?.role === 'broker' || user?.role === 'promotoria') {
+  // ── Vista diferenciada por rol ────────────────────────────────────────────
+  if (user?.role === 'promotoria') {
     return <BrokerDashboard greeting={greeting} role={user.role} name={user.name} agency={user.agency} />
+  }
+  if (user?.role === 'broker') {
+    return <CarrierCoreDashboard greeting={greeting} name={user.name} agency={user.agency} />
   }
 
   return (

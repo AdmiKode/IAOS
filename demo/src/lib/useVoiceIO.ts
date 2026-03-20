@@ -8,7 +8,7 @@ type SR = {
   interimResults: boolean
   maxAlternatives: number
   onresult: ((e: SREvent) => void) | null
-  onerror: (() => void) | null
+  onerror: ((e: { error?: string }) => void) | null
   onend: (() => void) | null
   start: () => void
   stop: () => void
@@ -38,6 +38,8 @@ interface UseVoiceIOOptions {
   pitch?: number          // tono TTS 0–2 (default 1.05)
   onTranscript?: (text: string, isFinal: boolean) => void
   onSpeechEnd?: () => void
+  /** Si true, el micrófono se reactiva automáticamente después de que XORIA termina de hablar */
+  autoListen?: boolean
 }
 
 export function useVoiceIO(options: UseVoiceIOOptions = {}) {
@@ -47,6 +49,7 @@ export function useVoiceIO(options: UseVoiceIOOptions = {}) {
     pitch = 1.05,
     onTranscript,
     onSpeechEnd,
+    autoListen = false,
   } = options
 
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
@@ -57,6 +60,11 @@ export function useVoiceIO(options: UseVoiceIOOptions = {}) {
   const synthRef = useRef<SpeechSynthesis | null>(null)
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null)
   const speakingRef = useRef(false)
+  const autoListenRef = useRef(autoListen)
+  const listeningRef = useRef(false)
+
+  // Mantener autoListenRef sincronizado
+  useEffect(() => { autoListenRef.current = autoListen }, [autoListen])
 
   // Inicializar en el cliente
   useEffect(() => {
@@ -85,31 +93,37 @@ export function useVoiceIO(options: UseVoiceIOOptions = {}) {
 
     const rec = new SR()
     rec.lang = lang
-    rec.continuous = false
-    rec.interimResults = true
+    rec.continuous = true        // ← escucha sin parar hasta que se llame stop()
+    rec.interimResults = false   // ← solo resultados finales = sin duplicados
     rec.maxAlternatives = 1
 
     rec.onresult = (e: SREvent) => {
-      let interim = ''
-      let final = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i]
-        const t = res[0].transcript
-        if (res.isFinal) final += t
-        else interim += t
-      }
-      const text = (final || interim).trim()
+      // Con continuous=true tomamos solo el último resultado final
+      const last = e.results[e.results.length - 1]
+      if (!last.isFinal) return
+      const text = last[0].transcript.trim()
+      if (!text) return
       setTranscript(text)
-      onTranscript?.(text, !!final)
+      onTranscript?.(text, true)
     }
 
-    rec.onerror = () => {
+    rec.onerror = (ev: { error?: string }) => {
+      // 'no-speech' es normal cuando el usuario no habla; reiniciar silenciosamente
+      if (ev.error === 'no-speech' && listeningRef.current) {
+        try { rec.start() } catch { /* ignore */ }
+        return
+      }
       setVoiceState('idle')
+      listeningRef.current = false
       speakingRef.current = false
     }
 
     rec.onend = () => {
-      if (voiceState === 'listening') setVoiceState('idle')
+      // Si seguimos en modo escucha, reiniciar automáticamente (continuous workaround en Safari/Chrome)
+      if (listeningRef.current) {
+        try { rec.start() } catch { /* ignore */ }
+        return
+      }
       speakingRef.current = false
       onSpeechEnd?.()
     }
@@ -126,6 +140,11 @@ export function useVoiceIO(options: UseVoiceIOOptions = {}) {
   // ── Hablar (TTS) ──────────────────────────────────────────────────────────
   const speak = useCallback((text: string, onEnd?: () => void) => {
     if (!synthRef.current || !text) return
+    // Pausar escucha mientras XORIA habla para evitar que se escuche a sí misma
+    if (listeningRef.current) {
+      try { recogRef.current?.stop() } catch { /* ignore */ }
+      // No cambiamos listeningRef — seguimos "queriendo" escuchar
+    }
     synthRef.current.cancel()
     setVoiceState('speaking')
 
@@ -138,8 +157,23 @@ export function useVoiceIO(options: UseVoiceIOOptions = {}) {
     utt.onend = () => {
       setVoiceState('idle')
       onEnd?.()
+      // Si autoListen está activo, reanudar micrófono después de hablar
+      if (autoListenRef.current && listeningRef.current) {
+        setTimeout(() => {
+          try { recogRef.current?.start() } catch { /* ignore */ }
+          setVoiceState('listening')
+        }, 300)
+      }
     }
-    utt.onerror = () => setVoiceState('idle')
+    utt.onerror = () => {
+      setVoiceState('idle')
+      if (autoListenRef.current && listeningRef.current) {
+        setTimeout(() => {
+          try { recogRef.current?.start() } catch { /* ignore */ }
+          setVoiceState('listening')
+        }, 300)
+      }
+    }
 
     synthRef.current.speak(utt)
   }, [lang, rate, pitch])
@@ -152,24 +186,26 @@ export function useVoiceIO(options: UseVoiceIOOptions = {}) {
 
   // ── Escuchar (STT) ────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
-    if (!recogRef.current || voiceState === 'listening') return
+    if (!recogRef.current || listeningRef.current) return
     setTranscript('')
     setVoiceState('listening')
+    listeningRef.current = true
     speakingRef.current = true
     try { recogRef.current.start() } catch { /* already started */ }
-  }, [voiceState])
+  }, [])
 
   const stopListening = useCallback(() => {
+    listeningRef.current = false
+    speakingRef.current = false
     recogRef.current?.stop()
     setVoiceState('idle')
-    speakingRef.current = false
   }, [])
 
   // ── Toggle micrófono ──────────────────────────────────────────────────────
   const toggleListen = useCallback(() => {
-    if (voiceState === 'listening') stopListening()
+    if (listeningRef.current) stopListening()
     else startListening()
-  }, [voiceState, startListening, stopListening])
+  }, [startListening, stopListening])
 
   return {
     voiceState,

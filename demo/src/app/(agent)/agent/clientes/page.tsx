@@ -1,8 +1,9 @@
 'use client'
 import { useState } from 'react'
 import { MOCK_CLIENTS, MOCK_POLICIES, MOCK_PAYMENTS, MOCK_TICKETS, MOCK_SINIESTROS, MOCK_RAMOS } from '@/data/mock'
-import { Users, Mail, Phone, Search, Plus, ArrowRight, TrendingUp, X, CheckCircle, FileText, MessageSquare, AlertTriangle } from 'lucide-react'
+import { Users, Mail, Phone, Search, Plus, ArrowRight, TrendingUp, X, CheckCircle, FileText, MessageSquare, AlertTriangle, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { exportCSV } from '@/lib/exportCSV'
 import Link from 'next/link'
 import { NeuSelect } from '@/components/ui'
 
@@ -38,10 +39,17 @@ export default function ClientesPage() {
           <h1 className="text-[20px] text-[#1A1F2B] tracking-wide">Clientes</h1>
           <p className="text-[13px] text-[#9CA3AF] mt-0.5">{MOCK_CLIENTS.length} clientes y prospectos registrados</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 h-10 px-4 bg-[#F7941D] rounded-xl text-white text-[13px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors self-start sm:self-auto">
-          <Plus size={15} />
-          Nuevo cliente
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => exportCSV(MOCK_CLIENTS.map(c => ({ 'Nombre': c.name, 'Email': c.email, 'Teléfono': c.phone, 'RFC': c.rfc, 'Dirección': c.direccion, 'Ocupación': c.ocupacion, 'Estado civil': c.estadoCivil, 'Agente': c.assignedAgent, 'Score': c.score, 'Etiquetas': c.tags.join('; '), 'Alta': c.createdAt })), 'clientes')}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-xl text-[12px] text-[#6B7280] bg-[#EFF2F9] shadow-[-3px_-3px_7px_#FAFBFF,3px_3px_7px_rgba(22,27,29,0.12)] hover:text-[#1A1F2B] transition-colors">
+            <Download size={13} /> CSV
+          </button>
+          <button onClick={openNew} className="flex items-center gap-2 h-10 px-4 bg-[#F7941D] rounded-xl text-white text-[13px] shadow-[0_4px_12px_rgba(247,148,29,0.3)] hover:bg-[#E8820A] transition-colors">
+            <Plus size={15} />
+            Nuevo cliente
+          </button>
+        </div>
       </div>
 
       {/* KPIs rápidos */}

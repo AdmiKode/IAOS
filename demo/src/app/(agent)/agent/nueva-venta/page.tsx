@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { ArrowRight, ArrowLeft, Shield, Users, Heart, Check } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Shield, Users, Heart, Car, ExternalLink, Check, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const SEGUROS = [
@@ -40,6 +40,18 @@ const SEGUROS = [
     color: '#7C1F31',
     bg: 'rgba(124,31,49,0.08)',
     border: 'rgba(124,31,49,0.25)',
+    disponible: false,
+  },
+  {
+    id: 'auto',
+    icon: Car,
+    label: 'Auto',
+    desc: 'Seguro de automóvil individual. Incluye validación de placas REPUVE/RENAPO para verificar reporte de robo.',
+    campos: 18,
+    tiempo: '6–8 min',
+    color: '#3B82F6',
+    bg: 'rgba(59,130,246,0.08)',
+    border: 'rgba(59,130,246,0.25)',
     disponible: false,
   },
 ]
@@ -106,7 +118,7 @@ export default function NuevaVentaPage() {
       </div>
 
       {/* Cards de tipo de seguro */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {SEGUROS.map(seg => {
           const Icon = seg.icon
           const isSelected = selected === seg.id
@@ -171,6 +183,59 @@ export default function NuevaVentaPage() {
             </button>
           )
         })}
+      </div>
+
+      {/* REPUVE — Herramienta de validación para seguro de Auto */}
+      <div className="rounded-2xl overflow-hidden shadow-[-4px_-4px_10px_#FAFBFF,4px_4px_10px_rgba(22,27,29,0.12)]">
+        <div className="bg-[#3B82F6]/8 border border-[#3B82F6]/20 rounded-2xl p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-[#3B82F6]/10">
+              <Car size={22} className="text-[#3B82F6]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-[13px] font-semibold text-[#1A1F2B]">REPUVE — Validación de placas y robo vehicular</h3>
+                <span className="text-[9px] font-semibold tracking-widest uppercase px-2 py-0.5 rounded-full bg-[#3B82F6]/10 text-[#3B82F6]">Seguro Auto</span>
+              </div>
+              <p className="text-[12px] text-[#6B7280] leading-relaxed mb-3">
+                Consulta obligatoria AMIS/CNBV antes de emitir cualquier seguro de automóvil. Verifica el número de serie (VIN), placas y si el vehículo tiene reporte de robo activo.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href="https://www.repuve.gob.mx"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold text-white transition-all hover:scale-[1.03] hover:shadow-[0_6px_20px_rgba(59,130,246,0.4)]"
+                  style={{ background: 'linear-gradient(135deg,#3B82F6,#2563EB)', boxShadow: '0 4px_14px_rgba(59,130,246,0.3)' }}
+                >
+                  <ExternalLink size={12} />
+                  Consultar REPUVE
+                </a>
+                <a
+                  href="https://www.repuve.gob.mx"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold text-[#3B82F6] border border-[#3B82F6]/30 bg-[#EFF2F9] shadow-[-2px_-2px_5px_#FAFBFF,2px_2px_5px_rgba(22,27,29,0.10)] transition-all hover:scale-[1.02]"
+                >
+                  <AlertTriangle size={12} />
+                  Verificar reporte de robo
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-[#3B82F6]/10 grid grid-cols-3 gap-3">
+            {[
+              { label: 'VIN / No. de serie', desc: 'Verificación de chasis y motor' },
+              { label: 'Placas', desc: 'Consulta por número de placas' },
+              { label: 'Reporte de robo', desc: 'Base de datos SNSP/ANI' },
+            ].map(item => (
+              <div key={item.label} className="text-center">
+                <p className="text-[11px] font-semibold text-[#1A1F2B]">{item.label}</p>
+                <p className="text-[10px] text-[#9CA3AF] mt-0.5">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* CTA iniciar */}

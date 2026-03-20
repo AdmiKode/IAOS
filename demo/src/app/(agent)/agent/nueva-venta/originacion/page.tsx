@@ -280,33 +280,45 @@ function OriginacionContent() {
   const inputRef = useRef<HTMLInputElement>(null)
   const pendingRespuesta = useRef('')
   const initialized = useRef(false)
+  const responderRef = useRef<(v: string) => void>(() => {})
+  const procesandoRef = useRef(false)
+  const terminadoRef = useRef(false)
 
   const completados = Object.keys(valores).length
   const porcentaje = Math.round((completados / totalCampos) * 100)
   const campoActualObj = allCampos[campoActual]
   const terminado = campoActual >= allCampos.length
 
+  // Mantener refs sincronizados para callbacks de voz
+  useEffect(() => { procesandoRef.current = procesando }, [procesando])
+  useEffect(() => { terminadoRef.current = terminado }, [terminado])
+
   // ── Hook de voz ─────────────────────────────────────────────────────────────
-  const { speak, stopSpeaking, toggleListen, isListening, isSpeaking, supported, transcript } =
+  const { speak, stopSpeaking, toggleListen, startListening, stopListening, isListening, isSpeaking, supported, transcript } =
     useVoiceIO({
       lang: 'es-MX',
       rate: 0.9,
       pitch: 1.1,
+      autoListen: voiceEnabled,   // ← micrófono continuo: se reactiva automáticamente
       onTranscript: (text, isFinal) => {
+        if (!isFinal) return       // ← ignorar parciales, solo procesar resultado final
         setInputUsuario(text)
-        if (isFinal && text.trim()) {
-          pendingRespuesta.current = text.trim()
+        if (text.trim() && !procesandoRef.current && !terminadoRef.current) {
+          const r = text.trim()
+          setTimeout(() => responderRef.current(r), 200)
         }
       },
       onSpeechEnd: () => {
-        // Al terminar de hablar el usuario → auto-enviar si hay texto
-        if (pendingRespuesta.current) {
-          const r = pendingRespuesta.current
-          pendingRespuesta.current = ''
-          setTimeout(() => responder(r), 150)
-        }
+        // no-op — lógica movida a onTranscript
       },
     })
+
+  // ── Activar/desactivar escucha continua según voiceEnabled ───────────────
+  useEffect(() => {
+    if (voiceEnabled) startListening()
+    else stopListening()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceEnabled])
 
   // ── Hablar mensaje XORIA ──────────────────────────────────────────────────
   const xoriaHabla = useCallback((texto: string, luegoBotones = false) => {
@@ -354,6 +366,7 @@ function OriginacionContent() {
     if (!valor.trim() || terminado) return
     stopSpeaking()
     setProcesando(true)
+    procesandoRef.current = true
     const nuevoValores = { ...valores, [campoActualObj.id]: valor }
     setValores(nuevoValores)
     setMensajes(prev => [...prev, { from: 'user', text: valor }])
@@ -388,9 +401,13 @@ function OriginacionContent() {
         setCampoActual(sig)
       }
       setProcesando(false)
+      procesandoRef.current = false
       setTimeout(() => inputRef.current?.focus(), 100)
     }, 400)
   }
+
+  // Mantener responderRef actualizado con la versión más reciente
+  responderRef.current = responder
 
   function saltar() {
     if (terminado) return
