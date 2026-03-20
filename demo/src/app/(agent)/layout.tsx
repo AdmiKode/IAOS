@@ -9,11 +9,12 @@ import {
   LayoutDashboard, Users, FileText, MessageSquare, Calendar,
   BarChart3, Settings, LogOut, Bot, Phone, Layers, ChevronRight,
   Bell, Search, FilePlus, RefreshCw, Menu, X, AlertTriangle,
-  CreditCard, BookOpen, Shield, Tag, Brain, Crown, TrendingUp, Mail
+  CreditCard, BookOpen, Shield, Tag, Brain, Crown, TrendingUp, Mail, Zap
 } from 'lucide-react'
 import { NotificationsPanel } from '@/components/agent/NotificationsPanel'
 
 const NAV_ITEMS = [
+  { icon: Zap, label: 'Nueva Venta IA', href: '/agent/nueva-venta', highlight: true },
   { icon: LayoutDashboard, label: 'Dashboard', href: '/agent/dashboard' },
   { icon: Users, label: 'Clientes', href: '/agent/clientes' },
   { icon: Layers, label: 'Pipeline', href: '/agent/pipeline' },
@@ -85,6 +86,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       <>
         {NAV_ITEMS.map(item => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          const isHighlight = (item as { highlight?: boolean }).highlight
           return (
             <Link
               key={item.href}
@@ -92,7 +94,9 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
               onClick={onItemClick}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] tracking-wide transition-all duration-200',
-                active
+                isHighlight && !active
+                  ? 'bg-gradient-to-r from-[#F7941D] to-[#e08019] text-white shadow-[0_4px_14px_rgba(247,148,29,0.35)] font-semibold'
+                  : active
                   ? 'bg-[#EFF2F9] text-[#F7941D] shadow-[inset_-3px_-3px_7px_#FAFBFF,inset_3px_3px_7px_rgba(22,27,29,0.18)]'
                   : 'text-[#6B7280] hover:text-[#1A1F2B] hover:bg-[#EFF2F9]/60'
               )}

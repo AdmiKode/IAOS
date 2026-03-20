@@ -283,12 +283,13 @@ export default function AgentDashboard() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link href="/agent/xoria">
-            <button className="flex items-center gap-2 h-10 px-4 bg-[#EFF2F9] rounded-xl shadow-[-4px_-4px_8px_#FAFBFF,4px_4px_8px_rgba(22,27,29,0.15)] text-[13px] text-[#F7941D] hover:scale-105 transition-transform duration-150">
+          <Link href="/agent/nueva-venta">
+            <button className="flex items-center gap-2.5 h-10 px-5 rounded-2xl text-white text-[13px] font-semibold tracking-wide transition-all duration-200 hover:scale-[1.03]"
+              style={{ background: 'linear-gradient(135deg,#F7941D,#e08019)', boxShadow: '0 6px 20px rgba(247,148,29,0.4)' }}>
               <div className="w-5 h-5 rounded-full overflow-hidden shrink-0">
                 <Image src="/Icono xoria.png" alt="XORIA" width={20} height={20} className="object-cover w-full h-full" />
               </div>
-              Preguntar a XORIA
+              Nueva venta asistida
             </button>
           </Link>
           <Link href="/agent/voz">
