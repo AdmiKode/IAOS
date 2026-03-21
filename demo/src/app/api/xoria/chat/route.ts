@@ -77,23 +77,30 @@ function buildSystemPrompt(context: Record<string, unknown>, externalInfo: strin
     aseguradora_billing: 'Eres experto en cobranza y comisiones de seguros. Analiza primas cobradas, vencidas, comisiones y eficiencia de cobro.',
     aseguradora_claims: 'Eres experto en siniestros. Analiza reclamaciones, reservas técnicas, tiempos de resolución y recomienda acciones a los ajustadores.',
     aseguradora_red: 'Eres experto en redes de distribución de seguros. Analiza el desempeño de promotorias y agentes, rankings, cumplimiento de metas y estrategias de crecimiento.',
-    agente: 'Eres copiloto ejecutivo del agente. Ayudas con cartera, clientes, renovaciones, correos y agenda.',
+    agente: 'Eres copiloto ejecutivo del agente de seguros. Ayudas con cartera, clientes, renovaciones, cotizaciones, correos y agenda.',
     promotoria: 'Eres asistente de la promotoria. Ayudas con gestión de agentes, producción, comisiones y reportes.',
   }
 
   const instruccion = perfilInstrucciones[perfil] || perfilInstrucciones['agente']
 
-  return `Eres XORIA, copiloto de inteligencia artificial del Insurance Agent OS (IAOS) para GNP Seguros México.
+  return `Eres XORIA, copiloto de inteligencia artificial del Insurance Agent OS (IAOS) para el mercado de seguros en México.
 ${instruccion}
 
-REGLAS:
-- Siempre en español, profesional y conciso.
-- Sin asteriscos dobles (**) ni markdown. Solo texto plano con saltos de línea.
-- Usa los datos del contexto. Si la respuesta está ahí, cítala con precisión (nombres, montos, fechas reales).
-- Máximo 200 palabras a menos que se pida documento completo.
-- No termines los mensajes con preguntas de confirmación como "¿Confirmas?" ni "¿Lo hago?". Presenta la información de forma directa y ejecutiva.
+PERSONALIDAD:
+- Hablas como un colega experto en seguros, no como un robot corporativo.
+- Eres directo, cálido y útil. Usas lenguaje natural en español mexicano.
+- Cuando alguien pide ayuda para redactar algo, LO REDACTAS completo, no preguntas si quieres que lo hagas.
+- Cuando alguien pide información de su agenda o reuniones, das una respuesta honesta basada en el contexto disponible.
+- Si no tienes un dato específico, lo dices claramente: "No tengo ese dato en tu sistema ahora mismo".
+- Nunca inventas datos concretos (nombres de clientes, montos exactos, fechas) que no estén en el contexto.
+- Eres conciso: máximo 180 palabras salvo que pidan un documento completo.
 
-${externalInfo ? `\nINFORMACIÓN EXTERNA ACTUALIZADA (Tavily):\n${externalInfo}\n` : ''}
+FORMATO:
+- Sin asteriscos (**), sin markdown, sin headers con #. Solo texto plano con saltos de línea.
+- No termines con "¿Lo hago?" ni "¿Confirmas?" — actúa directamente.
+- Si el usuario pide redactar un correo, propuesta o documento, escríbelo completo y listo para usar.
+
+${externalInfo ? `\nINFORMACIÓN EXTERNA (Tavily):\n${externalInfo}\n` : ''}
 
 CONTEXTO DEL SISTEMA:
 ${JSON.stringify(context || {})}`
@@ -223,21 +230,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ reply: clean, response: clean, model: provider })
     }
 
-    // 4. Demo fallback sin APIs
+    // 4. Demo fallback sin APIs — responde coherentemente según la pregunta real
     const msg = lastMessage.toLowerCase()
     let fallback = ''
-    if (msg.includes('solicitud') || msg.includes('riesgo') || msg.includes('score')) {
-      fallback = 'Tienes 2 solicitudes pendientes de alta prioridad: SOL-2026-0041 (Carlos Méndez, score 88, Bajo riesgo) y SOL-2026-0035 (Patricia Leal, score 67, Medio riesgo). Ambas están completas en documentación. ¿Las proceso?'
-    } else if (msg.includes('poliza') || msg.includes('póliza') || msg.includes('venc')) {
-      fallback = 'Cartera activa: 5 pólizas vigentes, 2 por renovar (Sofía Torres → 15 Ene 2027, Empresa Textil → 01 Mar 2026). La más urgente es Empresa Textil S.A. ¿Iniciamos renovación?'
-    } else if (msg.includes('cobr') || msg.includes('prima') || msg.includes('pago')) {
-      fallback = 'Efectividad de cobranza actual: 80%. Primas cobradas: $149,700 de $202,900. Cuentas vencidas: Empresa Textil ($42,000) y Patricia Leal ($9,200). ¿Notifico a los agentes?'
-    } else if (msg.includes('siniest')) {
-      fallback = 'ClaimCenter activo: 7 siniestros. Reserva técnica estimada: $685,700. 2 casos con más de 10 días abiertos: SIN-2026-0015 (Sofía Torres, 13 días) y SIN-2026-0013 (Patricia Leal, 20 días). ¿Los priorizo?'
-    } else if (msg.includes('agente') || msg.includes('promotoria') || msg.includes('red')) {
-      fallback = 'Red activa: 5 promotorias, 7 agentes. Top productor: Valeria Castillo ($284,000, 114% de meta). Promotoria líder: Promotoria Vidal Grupo ($842,000). ¿Quieres el reporte completo?'
+
+    if (msg.includes('reun') || msg.includes('cita') || msg.includes('agenda') || msg.includes('hoy') || msg.includes('mañana')) {
+      fallback = 'No tengo acceso a tu calendario en este momento — las integraciones con Google Calendar y Outlook se activan en la versión conectada. Lo que sí puedo ver es que tienes 2 renovaciones próximas esta semana y 38 leads activos en pipeline. ¿Te ayudo con algo de eso?'
+    } else if (msg.includes('propuesta') || msg.includes('redact') || msg.includes('correo') || msg.includes('carta')) {
+      const ramo = msg.includes('vida') ? 'Vida' : msg.includes('gmm') || msg.includes('médico') ? 'GMM' : msg.includes('auto') ? 'Auto' : 'Seguros'
+      fallback = `Aquí está tu propuesta de ${ramo}:\n\nEstimado cliente,\n\nEs un gusto presentarle nuestra propuesta de seguro de ${ramo} diseñada especialmente para sus necesidades.\n\n[Complementa con los datos del prospecto y la suma asegurada para personalizar]\n\nQuedamos a sus órdenes para cualquier aclaración.\n\nSaludos,\n${context?.agente || 'Tu agente de seguros'}`
+    } else if (msg.includes('poliza') || msg.includes('póliza') || msg.includes('venc') || msg.includes('renov')) {
+      fallback = 'Tienes pólizas próximas a vencer este mes. Para ver el detalle exacto con nombres y fechas, conecta XORIA con tu CRM desde Configuración. Por ahora puedes revisar el módulo de Renovaciones en el menú lateral.'
+    } else if (msg.includes('cobr') || msg.includes('prima') || msg.includes('pago') || msg.includes('vencid')) {
+      fallback = 'El módulo de Cobranza tiene tu cartera completa con los saldos pendientes. Para que XORIA te dé los montos exactos necesita estar conectada a tu base de datos — configúralo en Ajustes → Integraciones.'
+    } else if (msg.includes('siniest') || msg.includes('reclamac') || msg.includes('claim')) {
+      fallback = 'Los siniestros activos están en el módulo de Siniestros. Sin conexión al sistema central no puedo darte los números exactos, pero puedo ayudarte a redactar comunicaciones, analizar coberturas o preparar documentación.'
+    } else if (msg.includes('cliente') || msg.includes('prospecto') || msg.includes('contacto')) {
+      fallback = 'Puedo ayudarte a buscar clientes, preparar propuestas o redactar correos de seguimiento. ¿Tienes el nombre o datos del cliente con quien quieres trabajar?'
+    } else if (msg.includes('cotiz') || msg.includes('prima') || msg.includes('precio') || msg.includes('costo')) {
+      fallback = 'Para cotizar usa el módulo de Nueva Venta — tienes el cotizador de Auto con cálculo actuarial en tiempo real. También puedo ayudarte a estimar coberturas si me das los datos del riesgo.'
+    } else if (msg.includes('hola') || msg.includes('buenos') || msg.includes('buen dia') || msg.includes('buen día')) {
+      fallback = `Hola, ¿cómo estás? Soy XORIA, tu copiloto de seguros. Puedo ayudarte a cotizar, redactar propuestas, revisar tu cartera o preparar correos para clientes. ¿Por dónde empezamos?`
     } else {
-      fallback = 'XORIA conectada. Módulo activo: Aseguradora GNP. Tengo visibilidad de Underwriting, PolicyCenter, BillingCenter, ClaimCenter y Red de Distribución. ¿En qué área trabajamos?'
+      fallback = 'Entendido. Para darte una respuesta precisa necesito estar conectada a tu sistema — configura las integraciones en Ajustes. Mientras tanto, puedo ayudarte a redactar documentos, analizar coberturas o preparar comunicaciones con clientes. ¿Qué necesitas?'
     }
 
     return NextResponse.json({ reply: stripMarkdown(fallback), response: stripMarkdown(fallback), demo: true })
