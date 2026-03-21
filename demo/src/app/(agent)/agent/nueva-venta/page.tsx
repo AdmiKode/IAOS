@@ -277,20 +277,37 @@ export default function NuevaVentaPage() {
     rec.lang = 'es-MX'
     rec.continuous = false
     rec.interimResults = false
+
+    // Flag para evitar que onend interfiera después de recibir resultado
+    let gotResult = false
+
     rec.onstart = () => setListening(true)
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
-      const raw = e.results[0][0].transcript.trim()
+      gotResult = true
+      const raw = (e.results[0][0].transcript || '').trim()
+      if (!raw) return
       let valor = raw
 
       // Normalizar campos especiales
       if (key === 'edad') {
-        if (/18|1[89]|2[0-5]/.test(raw)) valor = '18-25'
-        else if (/2[6-9]|3[0-5]/.test(raw)) valor = '26-35'
-        else if (/3[6-9]|4[0-5]/.test(raw)) valor = '36-45'
-        else if (/4[6-9]|5[0-5]/.test(raw)) valor = '46-55'
-        else if (/5[6-9]|6[0-5]/.test(raw)) valor = '56-65'
-        else if (/65|6[6-9]|7|8|9/.test(raw)) valor = '65+'
+        const n = parseInt(raw.replace(/\D/g,''))
+        if (!isNaN(n)) {
+          if (n <= 25) valor = '18-25'
+          else if (n <= 35) valor = '26-35'
+          else if (n <= 45) valor = '36-45'
+          else if (n <= 55) valor = '46-55'
+          else if (n <= 65) valor = '56-65'
+          else valor = '65+'
+        } else {
+          if (/18|1[89]|2[0-5]/.test(raw)) valor = '18-25'
+          else if (/2[6-9]|3[0-5]/.test(raw)) valor = '26-35'
+          else if (/3[6-9]|4[0-5]/.test(raw)) valor = '36-45'
+          else if (/4[6-9]|5[0-5]/.test(raw)) valor = '46-55'
+          else if (/5[6-9]|6[0-5]/.test(raw)) valor = '56-65'
+          else valor = '65+'
+        }
       } else if (key === 'sexo') {
         valor = /fem|muj|f\b/i.test(raw) ? 'F' : 'M'
       } else if (key === 'uso') {
@@ -311,50 +328,74 @@ export default function NuevaVentaPage() {
       srRef.current = null
 
       const nextIdx = campoIdx + 1
+      setVozStatus(`✓ ${raw}`)
+
       if (nextIdx < VOZ_CAMPOS.length) {
-        const nextPregunta = VOZ_CAMPOS[nextIdx].pregunta
-        setVozStatus(`✓ ${raw}`)
         setVozCampoIdx(nextIdx)
+        // Esperar 900ms para que Android procese el onend limpiamente antes de hablar
         setTimeout(() => {
+          const nextPregunta = VOZ_CAMPOS[nextIdx].pregunta
           setVozStatus('XORIA hablando...')
-          speakText(nextPregunta, () => {
+          // speakText con doble respaldo: onEnd callback + timeout de 4s
+          let listenerStarted = false
+          const startNext = () => {
+            if (listenerStarted) return
+            listenerStarted = true
             setVozStatus('Escuchando...')
             escucharRespuesta(nextIdx, newForm)
-          })
-        }, 600)
+          }
+          speakText(nextPregunta, startNext)
+          // Respaldo: si onEnd no dispara en 4s, avanzamos igual
+          setTimeout(startNext, 4000)
+        }, 900)
       } else {
+        // Todos los campos completos
         setVozStatus('✓ Datos completos')
         setVozActiva(false)
-        speakText('Perfecto, ya tengo todos los datos. Calculando la cotización ahora.', () => {
-          // calcular con newForm directamente
+        setTimeout(() => {
           const reqs = ['nombre','edad','sexo','cp','marca','modelo','anio','valor','uso']
           const nf = newForm as unknown as Record<string,string>
           const allDone = reqs.every(k => nf[k]?.trim())
           if (allDone) {
             const opciones = calcularPrimaAuto(newForm)
             const nueva: ResultadoCotizacion = {
-              id: `COT-${Date.now()}`, ramo, fecha: new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}),
+              id: `COT-${Date.now()}`, ramo,
+              fecha: new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}),
               cliente: newForm.nombre, datos: { ...newForm }, opciones, estado: 'generada'
             }
-            setCotActiva(nueva); saveCotizacion(nueva); setCotizaciones(loadCotizaciones()); setPantalla('resultado')
+            setCotActiva(nueva)
+            saveCotizacion(nueva)
+            setCotizaciones(loadCotizaciones())
+            setPantalla('resultado')
             setXoriaMsg(`Cotización lista para ${newForm.nombre}. ${newForm.marca} ${newForm.modelo} ${newForm.anio}. Prima mensual desde ${fmt(opciones[0].prima_mensual)}.`)
             speakText(`Cotización lista para ${newForm.nombre}. El ${newForm.marca} ${newForm.modelo} tiene una prima desde ${fmt(opciones[0].prima_mensual)} al mes.`)
           }
-        })
+        }, 900)
       }
     }
-    rec.onerror = () => {
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onerror = (e: any) => {
       setListening(false)
       srRef.current = null
-      setVozStatus('No te escuché. Intenta de nuevo.')
+      // no-speech es normal si el usuario tarda — reintentar silenciosamente sin TTS
+      if (e.error === 'no-speech' || e.error === 'aborted') {
+        setTimeout(() => escucharRespuesta(campoIdx, formSnapshot), 400)
+        return
+      }
+      // Error real — avisar y reintentar
+      setVozStatus('No te escuché. Repite la respuesta.')
       setTimeout(() => {
-        speakText('No te escuché bien. ' + VOZ_CAMPOS[campoIdx].pregunta, () => {
-          setVozStatus('Escuchando...')
-          escucharRespuesta(campoIdx, formSnapshot)
-        })
-      }, 500)
+        setVozStatus('Escuchando...')
+        escucharRespuesta(campoIdx, formSnapshot)
+      }, 1000)
     }
-    rec.onend = () => setListening(false)
+
+    // onend solo limpia listening si no hubo resultado (el resultado lo limpió antes)
+    rec.onend = () => {
+      if (!gotResult) setListening(false)
+    }
+
     try { rec.start() } catch { setListening(false) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ramo])
