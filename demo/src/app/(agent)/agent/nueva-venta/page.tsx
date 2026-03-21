@@ -1,15 +1,45 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   ArrowLeft, ArrowRight, Car, Shield, Heart, Home, Briefcase,
   Calculator, Send, Download, CheckCircle, Clock, Mail,
   ChevronRight, Sparkles, RotateCcw, FileText, Bot, X,
-  Plus, Eye, Star, AlertTriangle, TrendingUp, DollarSign
+  Plus, Eye, Star, AlertTriangle, TrendingUp, DollarSign,
+  Mic, MicOff, Volume2, VolumeX
 } from 'lucide-react'
 import { NeuSelect } from '@/components/ui/NeuSelect'
 import { cn } from '@/lib/utils'
+
+// ─── TTS / STT UNIVERSALES ────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSR(): any | null {
+  if (typeof window === 'undefined') return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
+}
+function speakText(text: string, onEnd?: () => void) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) { onEnd?.(); return }
+  window.speechSynthesis.cancel()
+  const utter = () => {
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'es-MX'; u.rate = 1.05; u.pitch = 1.0; u.volume = 1
+    const voices = window.speechSynthesis.getVoices()
+    const pick = voices.find(v => v.name === 'Paulina')
+      || voices.find(v => v.name === 'Sabina')
+      || voices.find(v => v.name === 'Monica')
+      || voices.find(v => v.lang === 'es-MX')
+      || voices.find(v => v.lang.startsWith('es'))
+    if (pick) u.voice = pick
+    if (onEnd) u.onend = () => onEnd()
+    window.speechSynthesis.speak(u)
+  }
+  const voices = window.speechSynthesis.getVoices()
+  if (voices.length > 0) { utter(); return }
+  const tid = setTimeout(utter, 1200)
+  window.speechSynthesis.onvoiceschanged = () => { clearTimeout(tid); window.speechSynthesis.onvoiceschanged = null; utter() }
+}
 
 // ─── CONSTANTES ACTUARIALES (factores de riesgo simulados) ───────────────────
 const FACTOR_EDAD: Record<string, number> = {
@@ -161,16 +191,24 @@ function TextInput({ value, onChange, placeholder, type = 'text' }: { value: str
 }
 
 // ─── XORIA MINI PANEL ─────────────────────────────────────────────────────────
-function XoriaMini({ msg }: { msg: string }) {
+function XoriaMini({ msg, onStartVoice, hasSR }: { msg: string; onStartVoice?: () => void; hasSR?: boolean }) {
   return (
     <div className="flex items-start gap-3 bg-[#F7941D]/6 border border-[#F7941D]/20 rounded-2xl p-4">
       <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
         <Image src="/Icono xoria.png" alt="XORIA" width={32} height={32} className="object-cover w-full h-full" />
       </div>
-      <div>
+      <div className="flex-1">
         <p className="text-[10px] text-[#F7941D] font-bold tracking-widest uppercase mb-0.5">XORIA</p>
         <p className="text-[13px] text-[#1A1F2B] leading-relaxed">{msg}</p>
       </div>
+      {onStartVoice && hasSR && (
+        <button
+          onClick={onStartVoice}
+          title="Llenar cotización por voz"
+          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold text-white bg-[#F7941D] shadow-[0_4px_12px_rgba(247,148,29,0.4)] hover:bg-[#e08019] active:scale-95 transition-all">
+          <Mic size={12} /> Modo voz
+        </button>
+      )}
     </div>
   )
 }
@@ -196,6 +234,155 @@ export default function NuevaVentaPage() {
   const [showMailModal, setShowMailModal] = useState(false)
   const [mailDest, setMailDest] = useState('')
   const [camposCompletos, setCamposCompletos] = useState(0)
+
+  // ─── VOZ ASISTIDA ────────────────────────────────────────────────────────────
+  const [hasSR, setHasSR] = useState(false)
+  const [vozActiva, setVozActiva] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [vozStatus, setVozStatus] = useState('')
+  const [vozCampoIdx, setVozCampoIdx] = useState(0)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const srRef = useRef<any>(null)
+
+  // Campos que XORIA pregunta en orden (9 obligatorios + estadoCivil)
+  const VOZ_CAMPOS: { key: keyof CotizacionAuto; pregunta: string; proceso?: (v: string) => string }[] = [
+    { key: 'nombre',     pregunta: '¿Cuál es el nombre completo del asegurado?' },
+    { key: 'edad',       pregunta: '¿En qué rango de edad está? Dime: 18 a 25, 26 a 35, 36 a 45, 46 a 55, 56 a 65, o mayor de 65.' },
+    { key: 'cp',         pregunta: '¿Cuál es el código postal del domicilio del asegurado?', proceso: v => v.replace(/\D/g,'').slice(0,5) },
+    { key: 'sexo',       pregunta: '¿El asegurado es masculino o femenino?' },
+    { key: 'marca',      pregunta: '¿Cuál es la marca del vehículo? Por ejemplo: Volkswagen, Nissan, Toyota, Honda...' },
+    { key: 'modelo',     pregunta: '¿Cuál es el modelo del vehículo?' },
+    { key: 'anio',       pregunta: '¿De qué año es el vehículo?', proceso: v => v.replace(/\D/g,'').slice(0,4) },
+    { key: 'valor',      pregunta: '¿Cuál es el valor comercial aproximado en pesos? Solo el número, sin comas.' },
+    { key: 'uso',        pregunta: '¿Cuál es el uso del vehículo? Dime: particular, Uber, negocio o reparto.' },
+  ]
+
+  useEffect(() => {
+    setHasSR(!!getSR())
+  }, [])
+
+  const detenerSR = useCallback(() => {
+    try { srRef.current?.stop() } catch {}
+    srRef.current = null
+    setListening(false)
+  }, [])
+
+  const escucharRespuesta = useCallback((campoIdx: number, formSnapshot: CotizacionAuto) => {
+    const SR = getSR()
+    if (!SR || campoIdx >= VOZ_CAMPOS.length) return
+    const { key, proceso } = VOZ_CAMPOS[campoIdx]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rec: any = new SR()
+    srRef.current = rec
+    rec.lang = 'es-MX'
+    rec.continuous = false
+    rec.interimResults = false
+    rec.onstart = () => setListening(true)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      const raw = e.results[0][0].transcript.trim()
+      let valor = raw
+
+      // Normalizar campos especiales
+      if (key === 'edad') {
+        if (/18|1[89]|2[0-5]/.test(raw)) valor = '18-25'
+        else if (/2[6-9]|3[0-5]/.test(raw)) valor = '26-35'
+        else if (/3[6-9]|4[0-5]/.test(raw)) valor = '36-45'
+        else if (/4[6-9]|5[0-5]/.test(raw)) valor = '46-55'
+        else if (/5[6-9]|6[0-5]/.test(raw)) valor = '56-65'
+        else if (/65|6[6-9]|7|8|9/.test(raw)) valor = '65+'
+      } else if (key === 'sexo') {
+        valor = /fem|muj|f\b/i.test(raw) ? 'F' : 'M'
+      } else if (key === 'uso') {
+        if (/uber|didi/i.test(raw)) valor = 'uber'
+        else if (/neg|empr|compl/i.test(raw)) valor = 'negocio'
+        else if (/repart|mens|entreg/i.test(raw)) valor = 'reparto'
+        else valor = 'particular'
+      } else if (key === 'valor') {
+        const nums = raw.replace(/[^0-9]/g,'')
+        valor = nums || raw
+      } else if (proceso) {
+        valor = proceso(raw)
+      }
+
+      const newForm = { ...formSnapshot, [key]: valor }
+      setForm(newForm)
+      setListening(false)
+      srRef.current = null
+
+      const nextIdx = campoIdx + 1
+      if (nextIdx < VOZ_CAMPOS.length) {
+        const nextPregunta = VOZ_CAMPOS[nextIdx].pregunta
+        setVozStatus(`✓ ${raw}`)
+        setVozCampoIdx(nextIdx)
+        setTimeout(() => {
+          setVozStatus('XORIA hablando...')
+          speakText(nextPregunta, () => {
+            setVozStatus('Escuchando...')
+            escucharRespuesta(nextIdx, newForm)
+          })
+        }, 600)
+      } else {
+        setVozStatus('✓ Datos completos')
+        setVozActiva(false)
+        speakText('Perfecto, ya tengo todos los datos. Calculando la cotización ahora.', () => {
+          // calcular con newForm directamente
+          const reqs = ['nombre','edad','sexo','cp','marca','modelo','anio','valor','uso']
+          const nf = newForm as unknown as Record<string,string>
+          const allDone = reqs.every(k => nf[k]?.trim())
+          if (allDone) {
+            const opciones = calcularPrimaAuto(newForm)
+            const nueva: ResultadoCotizacion = {
+              id: `COT-${Date.now()}`, ramo, fecha: new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}),
+              cliente: newForm.nombre, datos: { ...newForm }, opciones, estado: 'generada'
+            }
+            setCotActiva(nueva); saveCotizacion(nueva); setCotizaciones(loadCotizaciones()); setPantalla('resultado')
+            setXoriaMsg(`Cotización lista para ${newForm.nombre}. ${newForm.marca} ${newForm.modelo} ${newForm.anio}. Prima mensual desde ${fmt(opciones[0].prima_mensual)}.`)
+            speakText(`Cotización lista para ${newForm.nombre}. El ${newForm.marca} ${newForm.modelo} tiene una prima desde ${fmt(opciones[0].prima_mensual)} al mes.`)
+          }
+        })
+      }
+    }
+    rec.onerror = () => {
+      setListening(false)
+      srRef.current = null
+      setVozStatus('No te escuché. Intenta de nuevo.')
+      setTimeout(() => {
+        speakText('No te escuché bien. ' + VOZ_CAMPOS[campoIdx].pregunta, () => {
+          setVozStatus('Escuchando...')
+          escucharRespuesta(campoIdx, formSnapshot)
+        })
+      }, 500)
+    }
+    rec.onend = () => setListening(false)
+    try { rec.start() } catch { setListening(false) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ramo])
+
+  const iniciarVozAsistida = useCallback(() => {
+    if (!hasSR) return
+    setVozActiva(true)
+    setVozCampoIdx(0)
+    setPantalla('formulario')
+    const bienvenida = 'Hola, voy a ayudarte a llenar la cotización por voz. Responde cada pregunta con claridad.'
+    setVozStatus('XORIA hablando...')
+    speakText(bienvenida + ' ' + VOZ_CAMPOS[0].pregunta, () => {
+      setVozStatus('Escuchando...')
+      escucharRespuesta(0, {
+        nombre:'', edad:'', sexo:'', cp:'', estadoCivil:'',
+        marca:'', modelo:'', anio:'', version:'', valor:'', uso:'', color:'', placas:'', vin:'',
+        deducible:'5', coaseguro:'10'
+      })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasSR, escucharRespuesta])
+
+  const detenerVoz = useCallback(() => {
+    detenerSR()
+    window.speechSynthesis?.cancel()
+    setVozActiva(false)
+    setVozStatus('')
+  }, [detenerSR])
 
   const [form, setForm] = useState<CotizacionAuto>({
     nombre:'', edad:'', sexo:'', cp:'', estadoCivil:'',
@@ -279,7 +466,7 @@ export default function NuevaVentaPage() {
         </button>
       </div>
 
-      <XoriaMini msg={xoriaMsg} />
+      <XoriaMini msg={xoriaMsg} onStartVoice={iniciarVozAsistida} hasSR={hasSR} />
 
       {/* Flujo visual */}
       <div className="bg-[#EFF2F9] rounded-2xl p-4 shadow-[-4px_-4px_10px_#FAFBFF,4px_4px_10px_rgba(22,27,29,0.12)]">
@@ -356,7 +543,35 @@ export default function NuevaVentaPage() {
         </button>
       </div>
 
-      <XoriaMini msg={xoriaMsg} />
+      {/* Banner voz activa */}
+      {vozActiva && (
+        <div className={cn(
+          'flex items-center gap-3 rounded-2xl p-4 border transition-all',
+          listening
+            ? 'bg-[#F7941D]/10 border-[#F7941D]/40 shadow-[0_0_20px_rgba(247,148,29,0.15)]'
+            : 'bg-[#1A1F2B]/5 border-[#1A1F2B]/15'
+        )}>
+          <div className={cn('w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all',
+            listening ? 'bg-[#F7941D] shadow-[0_0_16px_rgba(247,148,29,0.5)]' : 'bg-[#EFF2F9]')}>
+            {listening ? <Mic size={16} className="text-white" /> : <Volume2 size={16} className="text-[#F7941D]" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold tracking-widest text-[#F7941D] uppercase mb-0.5">
+              XORIA · Modo voz — Campo {vozCampoIdx + 1} de {VOZ_CAMPOS.length}
+            </p>
+            <p className="text-[13px] font-semibold text-[#1A1F2B] leading-snug">
+              {VOZ_CAMPOS[vozCampoIdx]?.pregunta}
+            </p>
+            {vozStatus && <p className="text-[11px] text-[#6B7280] mt-0.5">{vozStatus}</p>}
+          </div>
+          <button onClick={detenerVoz}
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-[#EFF2F9] text-[#6B7280] hover:text-[#7C1F31] transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      <XoriaMini msg={xoriaMsg} onStartVoice={iniciarVozAsistida} hasSR={hasSR && !vozActiva} />
 
       {/* Barra de progreso */}
       <div className="bg-[#EFF2F9] rounded-xl p-3 shadow-[inset_-2px_-2px_5px_#FAFBFF,inset_2px_2px_5px_rgba(22,27,29,0.10)]">

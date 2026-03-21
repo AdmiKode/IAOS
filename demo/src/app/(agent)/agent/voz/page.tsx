@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Mic, MicOff, Phone, PhoneOff, Volume2, Send, Sparkles } from 'lucide-react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
@@ -8,6 +8,53 @@ import {
   MOCK_KPIS, MOCK_LEADS, MOCK_CLIENTS, MOCK_POLICIES,
   MOCK_TICKETS, MOCK_SINIESTROS, MOCK_PAYMENTS, MOCK_AGENDA
 } from '@/data/mock'
+
+// ─── TTS universal: espera voiceschanged antes de hablar ────────────────────
+function speakText(text: string, onEnd?: () => void) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+  const synth = window.speechSynthesis
+  synth.cancel()
+
+  function doSpeak() {
+    const voices = synth.getVoices()
+    const utt = new SpeechSynthesisUtterance(text.slice(0, 500))
+    utt.lang = 'es-MX'
+    utt.rate = 0.95
+    utt.pitch = 1.05
+    // Prioridad: Paulina (Apple) > Sabina (MS) > Monica > cualquier es-MX > cualquier es
+    const picked =
+      voices.find(v => /paulina/i.test(v.name)) ||
+      voices.find(v => /sabina/i.test(v.name)) ||
+      voices.find(v => /monica|conchita/i.test(v.name)) ||
+      voices.find(v => v.lang === 'es-MX') ||
+      voices.find(v => v.lang.startsWith('es'))
+    if (picked) utt.voice = picked
+    utt.onend = () => onEnd?.()
+    utt.onerror = () => onEnd?.()
+    synth.speak(utt)
+  }
+
+  const voices = synth.getVoices()
+  if (voices.length > 0) {
+    doSpeak()
+  } else {
+    // Chrome Android / algunos browsers cargan voces de forma asíncrona
+    synth.addEventListener('voiceschanged', function once() {
+      synth.removeEventListener('voiceschanged', once)
+      doSpeak()
+    })
+    // Timeout de seguridad: si voiceschanged nunca llega, hablar igual
+    setTimeout(() => { if (synth.pending || synth.speaking) return; doSpeak() }, 1200)
+  }
+}
+
+// ─── STT universal: detecta si el navegador soporta reconocimiento ───────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSR(): (new () => any) | null {
+  if (typeof window === 'undefined') return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
+}
 
 const QUICK = [
   { label: 'Resumen del día', prompt: 'Dame un resumen ejecutivo de mi día y mis prioridades más urgentes.' },
@@ -28,8 +75,12 @@ export default function VozPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
+  const [hasSR, setHasSR] = useState(true) // se detecta en el cliente
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Detectar soporte de reconocimiento de voz en el cliente
+  useEffect(() => { setHasSR(!!getSR()) }, [])
 
   const context = {
     agent: user?.name,
@@ -48,7 +99,7 @@ export default function VozPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  async function send(text: string) {
+  const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return
     setInput('')
     const userMsg: Message = { role: 'user', content: text, ts: new Date().toISOString() }
@@ -62,34 +113,25 @@ export default function VozPage() {
         body: JSON.stringify({ messages: history, context }),
       })
       const data = await res.json()
-      const reply = data.reply || 'No pude procesar esa solicitud.'
+      const reply = (data.reply || 'No pude procesar esa solicitud.').replace(/\*\*(.*?)\*\*/g, '$1')
       setMessages(prev => [...prev, { role: 'assistant', content: reply, ts: new Date().toISOString() }])
-      // TTS
-      if ('speechSynthesis' in window) {
-        const utt = new SpeechSynthesisUtterance(reply.replace(/\*\*(.*?)\*\*/g, '$1').slice(0, 500))
-        utt.lang = 'es-MX'; utt.rate = 0.95; utt.pitch = 1.1
-        const voices = window.speechSynthesis.getVoices()
-        const mxVoice = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Paulina') || v.name.includes('Monica') || v.name.includes('Conchita') || v.name.includes('es')))
-        if (mxVoice) utt.voice = mxVoice
-        window.speechSynthesis.speak(utt)
-      }
+      // TTS universal — espera voiceschanged
+      if (!muted) speakText(reply)
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Error de conexión. Verifica tu red.', ts: new Date().toISOString() }])
     } finally {
       setLoading(false)
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, messages, muted, context])
 
   function toggleCall() {
     if (!connected) {
       setConnected(true)
-      const welcome = `Hola ${user?.name?.split(' ')[0] || 'agente'}, soy XORIA, tu asistente de inteligencia artificial. Tengo acceso a toda tu información del sistema: clientes, pólizas, pipeline, siniestros, cobranza y agenda. ¿En qué puedo ayudarte?`
+      const welcome = `Hola ${user?.name?.split(' ')[0] || 'agente'}, soy XORIA tu asistente de inteligencia artificial. Tengo acceso completo a tu sistema: clientes, pólizas, pipeline, siniestros, cobranza y agenda. ¿En qué puedo ayudarte?`
       setMessages([{ role: 'assistant', content: welcome, ts: new Date().toISOString() }])
-      if ('speechSynthesis' in window) {
-        const utt = new SpeechSynthesisUtterance(welcome)
-        utt.lang = 'es-MX'; utt.rate = 0.95; utt.pitch = 1.1
-        window.speechSynthesis.speak(utt)
-      }
+      // TTS universal — funciona en Android Chrome, Safari Mac, Chrome Desktop
+      speakText(welcome)
     } else {
       setConnected(false)
       window.speechSynthesis?.cancel()
@@ -98,16 +140,20 @@ export default function VozPage() {
   }
 
   function handleVoice() {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Tu navegador no soporta reconocimiento de voz. Usa Chrome.')
-      return
-    }
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const SR = getSR()
+    if (!SR) return // botón no se muestra si !hasSR
     const rec = new SR()
-    rec.lang = 'es-MX'; rec.interimResults = false
+    rec.lang = 'es-MX'
+    rec.interimResults = false
     setListening(true)
     rec.start()
-    rec.onresult = (e: any) => { const t = e.results[0][0].transcript; setInput(t); setListening(false); setTimeout(() => send(t), 100) }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      const t = e.results[0][0].transcript
+      setInput(t)
+      setListening(false)
+      setTimeout(() => send(t), 100)
+    }
     rec.onerror = () => setListening(false)
     rec.onend = () => setListening(false)
   }
@@ -263,10 +309,12 @@ export default function VozPage() {
                     placeholder="Escribe o usa el micrófono para preguntar algo..."
                     disabled={loading}
                     className="flex-1 bg-transparent py-4 text-[13px] text-[#1A1F2B] outline-none placeholder:text-[#9CA3AF] disabled:opacity-60" />
-                  <button onClick={handleVoice} disabled={loading}
-                    className={cn('w-8 h-8 flex items-center justify-center rounded-xl transition-all', listening ? 'bg-[#F7941D] text-white' : 'text-[#9CA3AF] hover:text-[#6B7280]')}>
-                    {listening ? <MicOff size={15} /> : <Mic size={15} />}
-                  </button>
+                  {hasSR && (
+                    <button onClick={handleVoice} disabled={loading}
+                      className={cn('w-8 h-8 flex items-center justify-center rounded-xl transition-all', listening ? 'bg-[#F7941D] text-white' : 'text-[#9CA3AF] hover:text-[#6B7280]')}>
+                      {listening ? <MicOff size={15} /> : <Mic size={15} />}
+                    </button>
+                  )}
                   <button onClick={() => send(input)} disabled={loading || !input.trim()}
                     className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#F7941D] text-white shadow-[0_4px_12px_rgba(247,148,29,0.35)] hover:bg-[#E8820A] disabled:opacity-40 transition-all active:scale-95">
                     <Send size={14} />
