@@ -332,21 +332,23 @@ export default function NuevaVentaPage() {
 
       if (nextIdx < VOZ_CAMPOS.length) {
         setVozCampoIdx(nextIdx)
-        // Esperar 900ms para que Android procese el onend limpiamente antes de hablar
         setTimeout(() => {
           const nextPregunta = VOZ_CAMPOS[nextIdx].pregunta
           setVozStatus('XORIA hablando...')
-          // speakText con doble respaldo: onEnd callback + timeout de 4s
           let listenerStarted = false
           const startNext = () => {
             if (listenerStarted) return
             listenerStarted = true
-            setVozStatus('Escuchando...')
-            escucharRespuesta(nextIdx, newForm)
+            // Cancelar TTS por si aún estaba hablando antes de abrir el mic
+            try { window.speechSynthesis?.cancel() } catch {}
+            setTimeout(() => {
+              setVozStatus('Escuchando...')
+              escucharRespuesta(nextIdx, newForm)
+            }, 300)
           }
           speakText(nextPregunta, startNext)
-          // Respaldo: si onEnd no dispara en 4s, avanzamos igual
-          setTimeout(startNext, 4000)
+          // Respaldo: si onEnd nunca dispara, avanzar a los 6s
+          setTimeout(startNext, 6000)
         }, 900)
       } else {
         // Todos los campos completos
@@ -376,10 +378,12 @@ export default function NuevaVentaPage() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onerror = (e: any) => {
+      // Si ya procesamos un resultado, ignorar CUALQUIER error posterior
+      if (gotResult) return
       setListening(false)
       srRef.current = null
-      // no-speech es normal si el usuario tarda — reintentar silenciosamente sin TTS
-      if (e.error === 'no-speech' || e.error === 'aborted') {
+      // no-speech/aborted es normal — reintentar silenciosamente sin TTS
+      if (e.error === 'no-speech' || e.error === 'aborted' || e.error === 'network') {
         setTimeout(() => escucharRespuesta(campoIdx, formSnapshot), 400)
         return
       }
@@ -391,7 +395,7 @@ export default function NuevaVentaPage() {
       }, 1000)
     }
 
-    // onend solo limpia listening si no hubo resultado (el resultado lo limpió antes)
+    // onend solo actúa si no hubo resultado
     rec.onend = () => {
       if (!gotResult) setListening(false)
     }
